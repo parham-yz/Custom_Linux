@@ -1,0 +1,13 @@
+[Unit]
+Description=Obsidian Ember automatic display brightness
+Documentation=https://asahilinux.org/2026/04/progress-report-7-0/
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/obsidian-auto-brightness daemon
+Restart=on-failure
+RestartSec=5
+Nice=10
+
+[Install]
+WantedBy=default.target

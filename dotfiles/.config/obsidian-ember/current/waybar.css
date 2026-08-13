@@ -1,0 +1,14 @@
+@define-color bg-solid #0d0c0c;
+@define-color panel-solid #181513;
+@define-color hover-solid #362d26;
+@define-color border-solid #5a4632;
+@define-color bg alpha(@bg-solid, 0.91);
+@define-color panel alpha(@panel-solid, 0.95);
+@define-color hover alpha(@hover-solid, 0.95);
+@define-color border alpha(@border-solid, 0.44);
+@define-color text #eee5d8;
+@define-color muted #9f9183;
+@define-color accent #d6a15f;
+@define-color accent2 #e7c18c;
+@define-color danger #dc806f;
+@define-color contrast #17130f;

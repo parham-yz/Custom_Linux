@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
+
+output_dir="${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots"
+mkdir -p "$output_dir"
+timestamp="$(date +%Y-%m-%d_%H-%M-%S)"
+
+capture_file() {
+  local kind="$1" geometry="${2:-}" path="$output_dir/$timestamp-$kind.png"
+  if [[ -n "$geometry" ]]; then
+    grim -g "$geometry" "$path"
+  else
+    grim "$path"
+  fi
+  wl-copy < "$path"
+  notify-send 'Screenshot captured' "$path"
+}
+
+region_geometry() {
+  slurp -b '#0d0c0ccc' -c '#d6a15fff' -B '#00000066' -w 2
+}
+
+window_geometry() {
+  hyprctl activewindow -j | jq -r '"\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"'
+}
+
+case "${1:-region}" in
+  region)
+    geometry="$(region_geometry)" || exit 0
+    capture_file region "$geometry"
+    ;;
+  screen) capture_file screen ;;
+  window)
+    geometry="$(window_geometry)"
+    [[ "$geometry" != 'null,null nullxnull' ]] && capture_file window "$geometry"
+    ;;
+  ocr)
+    geometry="$(region_geometry)" || exit 0
+    temporary="$(mktemp /tmp/obsidian-ocr.XXXXXX.png)"
+    trap 'rm -f "$temporary"' EXIT
+    grim -g "$geometry" "$temporary"
+    text="$(tesseract "$temporary" stdout -l eng 2>/dev/null | sed -e 's/[[:space:]]*$//')"
+    [[ -n "$text" ]] || { notify-send 'OCR' 'No text recognized'; exit 1; }
+    printf '%s' "$text" | wl-copy
+    notify-send 'Text copied' "$(printf '%s' "$text" | head -c 120)"
+    ;;
+  color)
+    geometry="$(slurp -p -f '%x,%y 1x1')" || exit 0
+    hex="$(grim -g "$geometry" -t ppm - | tail -c 3 | od -An -tx1 | tr -d ' \n')"
+    [[ ${#hex} -eq 6 ]] || exit 1
+    printf '#%s' "$hex" | wl-copy
+    notify-send 'Color copied' "#$hex"
+    ;;
+  *) printf 'Usage: obsidian-capture {region|screen|window|ocr|color}\n' >&2; exit 2 ;;
+esac

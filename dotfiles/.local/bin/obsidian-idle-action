@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_root="${XDG_STATE_HOME:-$HOME/.local/state}/obsidian-ember"
+daemon_pid="$state_root/idle-daemon.pid"
+inhibit_pid="$state_root/toggles/inhibit.pid"
+mkdir -p "$state_root"
+
+daemon_running() {
+  local pid command_line
+  [[ -s "$daemon_pid" ]] || return 1
+  pid="$(<"$daemon_pid")"
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+  [[ -r "/proc/$pid/cmdline" ]] || return 1
+  command_line="$(tr '\0' ' ' < "/proc/$pid/cmdline")"
+  [[ "$command_line" == *'obsidian-idle-action daemon'* ]]
+}
+
+inhibited() {
+  [[ -f "$inhibit_pid" ]] && kill -0 "$(<"$inhibit_pid")" 2>/dev/null
+}
+
+media_playing() {
+  command -v playerctl >/dev/null &&
+    playerctl -a status 2>/dev/null | grep -qx Playing
+}
+
+system_busy() {
+  local load cores
+  read -r load _ < /proc/loadavg
+  cores="$(nproc)"
+  awk -v load="$load" -v cores="$cores" 'BEGIN {exit !(load > cores * 0.45)}'
+}
+
+screen_off() {
+  inhibited && return 0
+  media_playing && return 0
+  hyprctl dispatch dpms off >/dev/null 2>&1 || true
+}
+
+screen_on() {
+  hyprctl dispatch dpms on >/dev/null 2>&1 || true
+}
+
+suspend_system() {
+  inhibited && return 0
+  media_playing && return 0
+  system_busy && return 0
+  # Never auto-suspend into an unlocked Hyprland session. swaylock's system
+  # package supplies the PAM policy needed for a secure resume.
+  command -v swaylock >/dev/null || return 0
+  swaylock -f -c 0d0c0c
+  sleep 0.4
+  systemctl suspend
+}
+
+daemon() {
+  local self="$0"
+  if daemon_running && [[ "$(<"$daemon_pid")" != "$$" ]]; then
+    exit 0
+  fi
+  printf '%s\n' "$$" > "$daemon_pid"
+  trap 'rm -f "$daemon_pid"' EXIT
+  swayidle -w \
+    timeout 300 "$self screen-off" \
+      resume "$self screen-on" \
+    timeout 1200 "$self suspend" \
+    before-sleep "$self screen-off" \
+    after-resume "$self screen-on"
+}
+
+case "${1:-daemon}" in
+  daemon) daemon ;;
+  status) daemon_running ;;
+  screen-off) screen_off ;;
+  screen-on) screen_on ;;
+  suspend) suspend_system ;;
+  *) printf 'Usage: obsidian-idle-action {daemon|status|screen-off|screen-on|suspend}\n' >&2; exit 2 ;;
+esac

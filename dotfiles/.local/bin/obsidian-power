@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/obsidian-ember/power"
+mode_file="$state_dir/mode"
+daemon_pid="$state_dir/daemon.pid"
+bluetooth_marker="$state_dir/bluetooth-blocked"
+ac_path="/sys/class/power_supply/macsmc-ac/online"
+backlight_device="${OBSIDIAN_BACKLIGHT_DEVICE:-apple-panel-bl}"
+profile_bus="net.hadess.PowerProfiles"
+profile_object="/net/hadess/PowerProfiles"
+profile_interface="net.hadess.PowerProfiles"
+mkdir -p "$state_dir"
+
+on_ac() {
+  [[ -r "$ac_path" ]] && [[ "$(<"$ac_path")" == 1 ]]
+}
+
+daemon_running() {
+  local pid command_line
+  [[ -s "$daemon_pid" ]] || return 1
+  pid="$(<"$daemon_pid")"
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+  [[ -r "/proc/$pid/cmdline" ]] || return 1
+  command_line="$(tr '\0' ' ' < "/proc/$pid/cmdline")"
+  [[ "$command_line" == *'obsidian-power daemon'* ]]
+}
+
+active_profile() {
+  busctl --system get-property \
+    "$profile_bus" "$profile_object" "$profile_interface" ActiveProfile 2>/dev/null |
+    sed -n 's/^s "\(.*\)"$/\1/p'
+}
+
+set_profile() {
+  local profile="$1"
+  [[ "$(active_profile)" == "$profile" ]] && return 0
+  busctl --system set-property \
+    "$profile_bus" "$profile_object" "$profile_interface" ActiveProfile s "$profile"
+}
+
+set_blur() {
+  command -v hyprctl >/dev/null || return 0
+  hyprctl keyword decoration:blur:enabled "$1" >/dev/null 2>&1 || true
+}
+
+cap_brightness() {
+  local percent
+  command -v brightnessctl >/dev/null || return 0
+  percent="$(brightnessctl -d "$backlight_device" -m | cut -d, -f4 | tr -d '%')"
+  [[ "$percent" =~ ^[0-9]+$ ]] || return 0
+  ((percent <= 55)) || brightnessctl -q -d "$backlight_device" set 55%
+}
+
+block_idle_bluetooth() {
+  command -v bluetoothctl >/dev/null || return 0
+  command -v rfkill >/dev/null || return 0
+  [[ -z "$(bluetoothctl devices Connected 2>/dev/null)" ]] || return 0
+  rfkill list bluetooth 2>/dev/null | grep -q 'Soft blocked: yes' && return 0
+  if rfkill block bluetooth; then
+    : > "$bluetooth_marker"
+  fi
+}
+
+restore_bluetooth() {
+  [[ -f "$bluetooth_marker" ]] || return 0
+  rfkill unblock bluetooth 2>/dev/null || true
+  rm -f "$bluetooth_marker"
+}
+
+apply_mode() {
+  local requested previous
+  requested="${1:-auto}"
+  previous="$(cat "$mode_file" 2>/dev/null || true)"
+  if [[ "$requested" == auto ]]; then
+    if on_ac; then requested=ac; else requested=battery; fi
+  fi
+
+  case "$requested" in
+    battery)
+      set_profile power-saver
+      cap_brightness
+      block_idle_bluetooth
+      set_blur false
+      ;;
+    ac)
+      set_profile balanced
+      restore_bluetooth
+      set_blur true
+      ;;
+    *) printf 'Unknown power mode: %s\n' "$requested" >&2; return 2 ;;
+  esac
+
+  printf '%s\n' "$requested" > "$mode_file"
+  if [[ "$previous" != "$requested" ]] && [[ "${2:-notify}" != quiet ]]; then
+    if [[ "$requested" == battery ]]; then
+      notify-send 'Battery mode' 'Power saver • brightness capped at 55% • blur reduced'
+    else
+      notify-send 'AC mode' 'Balanced performance • full desktop effects'
+    fi
+  fi
+}
+
+status_text() {
+  local battery_status capacity health power_raw watts profile brightness source
+  battery_status="$(cat /sys/class/power_supply/macsmc-battery/status 2>/dev/null || printf unknown)"
+  capacity="$(cat /sys/class/power_supply/macsmc-battery/capacity 2>/dev/null || printf '?')"
+  health="$(upower -i /org/freedesktop/UPower/devices/battery_macsmc_battery 2>/dev/null |
+    awk '/^[[:space:]]*capacity:/ {print $2; exit}')"
+  power_raw="$(cat /sys/class/power_supply/macsmc-battery/power_now 2>/dev/null || printf 0)"
+  watts="$(awk -v value="$power_raw" 'BEGIN {if (value < 0) value=-value; printf "%.1f", value/1000000}')"
+  profile="$(active_profile)"
+  brightness="$(brightnessctl -d "$backlight_device" -m 2>/dev/null | cut -d, -f4)"
+  if on_ac; then source='AC power'; else source='battery'; fi
+  printf '%s • %s%% • %s W\nProfile: %s • Brightness: %s • Health: %s\n' \
+    "$source / $battery_status" "$capacity" "$watts" \
+    "${profile:-unknown}" "${brightness:-unknown}" "${health:-unknown}"
+}
+
+daemon() {
+  if daemon_running && [[ "$(<"$daemon_pid")" != "$$" ]]; then
+    exit 0
+  fi
+  printf '%s\n' "$$" > "$daemon_pid"
+  trap 'rm -f "$daemon_pid"' EXIT
+  apply_mode auto quiet
+  while IFS= read -r _; do
+    apply_mode auto
+  done < <(upower --monitor)
+  return 1
+}
+
+case "${1:-status}" in
+  daemon) daemon ;;
+  daemon-status) daemon_running ;;
+  auto) apply_mode auto ;;
+  battery|saver) apply_mode battery ;;
+  ac|balanced) apply_mode ac ;;
+  toggle)
+    if [[ "$(active_profile)" == power-saver ]]; then
+      set_profile balanced
+      notify-send 'Power profile' 'Balanced'
+    else
+      set_profile power-saver
+      cap_brightness
+      notify-send 'Power profile' 'Power saver'
+    fi
+    ;;
+  status) status_text ;;
+  notice) notify-send 'Power and battery' "$(status_text)" ;;
+  *) printf 'Usage: obsidian-power {daemon|daemon-status|auto|battery|ac|toggle|status|notice}\n' >&2; exit 2 ;;
+esac

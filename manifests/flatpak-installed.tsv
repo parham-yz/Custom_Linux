@@ -1,0 +1,5 @@
+com.visualstudio.code	stable	flathub
+org.freedesktop.Platform.codecs-extra	25.08-extra	flathub
+org.freedesktop.Platform.GL.default	25.08-extra	flathub
+org.freedesktop.Platform.GL.default	25.08	flathub
+org.freedesktop.Sdk	25.08	flathub

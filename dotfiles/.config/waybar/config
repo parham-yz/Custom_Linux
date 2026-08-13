@@ -1,0 +1,91 @@
+{
+  "layer": "top",
+  "position": "top",
+  "height": 30,
+  "margin-top": 8,
+  "margin-left": 10,
+  "margin-right": 10,
+  "spacing": 5,
+  "reload_style_on_change": true,
+  "modules-left": ["custom/launcher", "hyprland/workspaces", "hyprland/window", "custom/weather", "custom/updates"],
+  "modules-center": ["custom/notch"],
+  "modules-right": ["clock", "custom/activity", "pulseaudio", "network", "backlight", "battery", "tray"],
+  "custom/launcher": {
+    "format": "  OMA  ",
+    "tooltip": false,
+    "on-click": "obsidian-menu"
+  },
+  "hyprland/workspaces": {
+    "format": "{icon}",
+    "on-click": "activate",
+    "sort-by-number": true,
+    "persistent-workspaces": {"*": 5},
+    "format-icons": {"active": "●", "default": "○", "urgent": "◆"}
+  },
+  "hyprland/window": {
+    "format": "{title}",
+    "max-length": 28,
+    "rewrite": {"(.*) — Mozilla Firefox": "$1", "(.*) - Visual Studio Code": "$1"}
+  },
+  "clock": {
+    "timezone": "Europe/Berlin",
+    "format": "{:%a  %d %b   %H:%M}",
+    "format-alt": "{:%A, %d %B %Y   %H:%M:%S}",
+    "tooltip-format": "<tt><small>{calendar}</small></tt>"
+  },
+  "custom/notch": {
+    "format": "",
+    "tooltip": false
+  },
+  "custom/weather": {
+    "exec": "obsidian-weather bar",
+    "interval": 1800,
+    "tooltip": true,
+    "tooltip-format": "Weather • click for details",
+    "on-click": "obsidian-weather notice"
+  },
+  "custom/updates": {
+    "return-type": "json",
+    "exec": "obsidian-updates check",
+    "interval": 21600,
+    "on-click": "obsidian-updates run"
+  },
+  "custom/activity": {
+    "format": "󰓅",
+    "tooltip": true,
+    "tooltip-format": "System activity",
+    "on-click": "kitty btop --force-utf --config ~/.config/btop/obsidian-ember.conf"
+  },
+  "pulseaudio": {
+    "format": "{icon} {volume}%",
+    "format-muted": "󰖁",
+    "format-icons": {"default": ["󰕿", "󰖀", "󰕾"]},
+    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "on-click-right": "sh -c 'command -v pavucontrol >/dev/null && exec pavucontrol || exec kitty alsamixer'",
+    "scroll-step": 5
+  },
+  "network": {
+    "format-wifi": "󰤨",
+    "format-ethernet": "󰈀",
+    "format-disconnected": "󰤭",
+    "tooltip-format-wifi": "{essid}\n{ipaddr}\n{bandwidthDownBytes} down  {bandwidthUpBytes} up",
+    "tooltip-format-disconnected": "Wi-Fi disconnected • click to connect",
+    "on-click": "obsidian-network",
+    "on-click-right": "nm-connection-editor"
+  },
+  "backlight": {
+    "format": "󰃠 {percent}%",
+    "scroll-step": 5
+  },
+  "battery": {
+    "states": {"warning": 30, "critical": 15},
+    "format": "{icon} {capacity}%",
+    "format-charging": "󰂄 {capacity}%",
+    "format-plugged": "󰚥 {capacity}%",
+    "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
+    "tooltip-format": "{timeTo}  •  {power:.1f} W",
+    "on-click": "obsidian-power notice",
+    "on-click-right": "obsidian-power toggle"
+  },
+  "tray": {"icon-size": 16, "spacing": 8}
+}

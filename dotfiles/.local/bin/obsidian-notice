@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "${1:-time}" in
+  time)
+    notify-send "$(date '+%A, %d %B')" "$(date '+%H:%M • Week %V')"
+    ;;
+  battery)
+    shopt -s nullglob
+    batteries=(/sys/class/power_supply/BAT*)
+    if ((${#batteries[@]})); then
+      capacity="$(<"${batteries[0]}/capacity")"
+      status="$(<"${batteries[0]}/status")"
+      notify-send 'Battery' "$capacity% • $status"
+    else
+      notify-send 'Battery' 'No battery detected'
+    fi
+    ;;
+  weather)
+    weather="$(curl -fsS --max-time 8 'https://wttr.in/?format=%l:+%c+%t,+feels+%f,+%w' || true)"
+    notify-send 'Weather' "${weather:-Weather service unavailable}"
+    ;;
+  *) printf 'Usage: obsidian-notice {time|battery|weather}\n' >&2; exit 2 ;;
+esac

@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if (( EUID == 0 )); then
+  printf 'Run this launcher without sudo:\n  %s\n' \
+    "$HOME/.local/bin/obsidian-asahi-upgrade" >&2
+  exit 2
+fi
+
+target=44
+current="$(. /etc/os-release; printf '%s' "$VERSION_ID")"
+hypr_copr='sdegler/hyprland'
+
+run_upgrade() {
+  printf 'Fedora Asahi Remix %s -> %s\n\n' "$current" "$target"
+  printf 'This downloads the supported Fedora 44 release and then reboots.\n'
+  read -r -p 'Continue after backing up your files? [y/N] ' answer
+  [[ "$answer" =~ ^[Yy]$ ]] || exit 0
+
+  if ! dnf repolist --enabled | grep -Fq 'sdegler:hyprland'; then
+    printf '\nEnabling the Fedora 44 ARM Hyprland upgrade repository...\n'
+    sudo dnf copr enable -y "$hypr_copr"
+  fi
+
+  sudo dnf upgrade --refresh
+  sudo dnf install swaylock
+  sudo dnf --setopt=allow_vendor_change=1 \
+    --releasever="$target" system-upgrade download
+  read -r -p 'Packages are ready. Reboot into the upgrade now? [y/N] ' answer
+  [[ "$answer" =~ ^[Yy]$ ]] || exit 0
+  sudo dnf system-upgrade reboot
+}
+
+if ((current >= target)); then
+  notify-send 'Fedora Asahi' "Already on release $current"
+  exit 0
+fi
+
+case "${1:-open}" in
+  open)
+    exec konsole -e bash -lc \
+      "$HOME/.local/bin/obsidian-asahi-upgrade run; printf '\nPress Enter to close.'; read -r"
+    ;;
+  run) run_upgrade ;;
+  *) printf 'Usage: obsidian-asahi-upgrade [open|run]\n' >&2; exit 2 ;;
+esac

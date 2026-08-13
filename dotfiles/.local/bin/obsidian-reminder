@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
+
+set_reminder() {
+  local minutes message unit
+  minutes="$(printf '' | rofi -dmenu -p 'Minutes' -mesg 'Examples: 5, 20, 90')"
+  [[ "$minutes" =~ ^[0-9]+$ ]] && ((minutes > 0)) || exit 0
+  message="$(printf '' | rofi -dmenu -p 'Reminder' -mesg "In $minutes minutes")"
+  [[ -n "$message" ]] || exit 0
+  unit="obsidian-reminder-$(date +%s)"
+  systemd-run --user --unit "$unit" --on-active="${minutes}m" \
+    notify-send --urgency=critical 'Reminder' "$message" >/dev/null
+  notify-send 'Reminder set' "$message • ${minutes}m"
+}
+
+show_reminders() {
+  local timers
+  timers="$(systemctl --user list-timers --all --no-pager --no-legend 'obsidian-reminder-*' 2>/dev/null || true)"
+  if [[ -n "$timers" ]]; then
+    printf '%s\n' "$timers" | rofi -dmenu -p 'Reminders' -mesg 'Esc to close' >/dev/null || true
+  else
+    notify-send 'Reminders' 'No active reminders'
+  fi
+}
+
+clear_reminders() {
+  mapfile -t units < <(systemctl --user list-timers --all --no-legend 'obsidian-reminder-*' | awk '{print $NF}')
+  for unit in "${units[@]}"; do
+    systemctl --user stop "$unit" "${unit%.timer}.service" 2>/dev/null || true
+  done
+  notify-send 'Reminders' 'All reminders cleared'
+}
+
+case "${1:-set}" in
+  set) set_reminder ;;
+  show) show_reminders ;;
+  clear) clear_reminders ;;
+  *) printf 'Usage: obsidian-reminder {set|show|clear}\n' >&2; exit 2 ;;
+esac

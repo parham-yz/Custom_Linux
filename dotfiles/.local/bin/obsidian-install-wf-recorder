@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+temporary="$(mktemp -d /tmp/obsidian-wf-recorder.XXXXXX)"
+trap 'rm -rf "$temporary"' EXIT
+
+dnf --setopt=logdir=/tmp download --destdir="$temporary" --arch="$(uname -m)" wf-recorder
+rpm_path="$(find "$temporary" -maxdepth 1 -name 'wf-recorder-*.rpm' -print -quit)"
+[[ -f "$rpm_path" ]] || { printf 'Could not download wf-recorder RPM\n' >&2; exit 1; }
+mkdir -p "$temporary/extracted"
+(
+  cd "$temporary/extracted"
+  rpm2cpio "$rpm_path" | cpio -idm
+)
+install -D -m 0755 "$temporary/extracted/usr/bin/wf-recorder" "$HOME/.local/bin/wf-recorder"
+printf 'Installed Fedora wf-recorder to %s\n' "$HOME/.local/bin/wf-recorder"

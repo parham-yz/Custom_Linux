@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/obsidian-ember/toggles"
+mkdir -p "$state_dir"
+
+case "${1:-}" in
+  bar)
+    pkill -SIGUSR1 waybar
+    ;;
+  gaps)
+    if [[ -f "$state_dir/no-gaps" ]]; then
+      rm -f "$state_dir/no-gaps"
+      hyprctl keyword general:gaps_in 5
+      hyprctl keyword general:gaps_out 10
+      hyprctl keyword decoration:rounding 10
+      notify-send 'Window gaps' 'Enabled'
+    else
+      : > "$state_dir/no-gaps"
+      hyprctl keyword general:gaps_in 0
+      hyprctl keyword general:gaps_out 0
+      hyprctl keyword decoration:rounding 0
+      notify-send 'Window gaps' 'Disabled'
+    fi
+    ;;
+  idle)
+    if [[ -f "$state_dir/inhibit.pid" ]] && kill -0 "$(<"$state_dir/inhibit.pid")" 2>/dev/null; then
+      pid="$(<"$state_dir/inhibit.pid")"
+      pkill -P "$pid" 2>/dev/null || true
+      kill "$pid" 2>/dev/null || true
+      rm -f "$state_dir/inhibit.pid"
+      notify-send 'Idle prevention' 'Disabled'
+    else
+      nohup systemd-inhibit --what=idle:sleep --who='Obsidian Ember' --why='User requested' sleep infinity >/dev/null 2>&1 &
+      printf '%s\n' "$!" > "$state_dir/inhibit.pid"
+      notify-send 'Idle prevention' 'Enabled • the MacBook will stay awake'
+    fi
+    ;;
+  notifications)
+    makoctl mode -t do-not-disturb
+    ;;
+  nightlight)
+    nightlight_pid="$state_dir/nightlight.pid"
+    if [[ -f "$nightlight_pid" ]] && kill -0 "$(<"$nightlight_pid")" 2>/dev/null; then
+      kill "$(<"$nightlight_pid")" 2>/dev/null || true
+      rm -f "$nightlight_pid"
+      notify-send 'Night light' 'Disabled • display color restored'
+    elif command -v wlsunset >/dev/null; then
+      # Start automatically, then cycle high -> low to force warm 4000 K.
+      nohup wlsunset -l 52.5 -L 13.4 -t 4000 >/dev/null 2>&1 &
+      printf '%s\n' "$!" > "$nightlight_pid"
+      sleep 0.2
+      kill -USR1 "$(<"$nightlight_pid")" 2>/dev/null || true
+      kill -USR1 "$(<"$nightlight_pid")" 2>/dev/null || true
+      notify-send 'Night light' 'Enabled • warm 4000 K'
+    else
+      notify-send 'Night light unavailable' 'Run obsidian-install-wlsunset'
+      exit 1
+    fi
+    ;;
+  autobrightness)
+    obsidian-auto-brightness toggle
+    ;;
+  reload)
+    hyprctl reload
+    pkill -SIGUSR2 waybar 2>/dev/null || true
+    makoctl reload 2>/dev/null || true
+    notify-send 'Desktop reloaded' 'Hyprland • Waybar • Mako'
+    ;;
+  *) printf 'Usage: obsidian-toggle {autobrightness|bar|gaps|idle|nightlight|notifications|reload}\n' >&2; exit 2 ;;
+esac

@@ -1,0 +1,228 @@
+Adwaita Mono
+Adwaita Sans
+C059
+Caladea
+Cantarell
+Cantarell Extra Bold
+Cantarell Light
+Cantarell Thin
+Carlito
+Comfortaa
+Comfortaa Light
+Comfortaa Medium
+Comfortaa SemiBold
+D050000L
+DejaVu Sans
+DejaVu Sans Condensed
+DejaVu Sans Light
+Droid Arabic Kufi
+Droid Sans
+Droid Sans Armenian
+Droid Sans Devanagari
+Droid Sans Ethiopic
+Droid Sans Fallback
+Droid Sans Georgian
+Droid Sans Hebrew
+Droid Sans Japanese
+Droid Sans Tamil
+Droid Sans Thai
+Font Awesome 6 Brands
+Font Awesome 6 Brands Regular
+Font Awesome 6 Free
+Font Awesome 6 Free Regular
+Font Awesome 6 Free Solid
+JetBrainsMono Nerd Font
+JetBrainsMono NF
+Jomolhari
+Liberation Mono
+Liberation Sans
+Liberation Serif
+Madan2
+Nimbus Mono PS
+Nimbus Roman
+Nimbus Sans
+Nimbus Sans Narrow
+Noto Color Emoji
+Noto Emoji
+Noto Naskh Arabic
+Noto Sans
+Noto Sans Arabic
+Noto Sans Armenian
+Noto Sans Bengali
+Noto Sans Black
+Noto Sans Canadian Aboriginal
+Noto Sans Cherokee
+Noto Sans CJK HK
+Noto Sans CJK JP
+Noto Sans CJK KR
+Noto Sans CJK SC
+Noto Sans CJK TC
+Noto Sans Condensed
+Noto Sans Condensed Black
+Noto Sans Condensed ExtraBold
+Noto Sans Condensed ExtraLight
+Noto Sans Condensed Light
+Noto Sans Condensed Medium
+Noto Sans Condensed SemiBold
+Noto Sans Condensed Thin
+Noto Sans Devanagari
+Noto Sans Ethiopic
+Noto Sans ExtraBold
+Noto Sans ExtraCondensed
+Noto Sans ExtraCondensed Black
+Noto Sans ExtraCondensed ExtraBold
+Noto Sans ExtraCondensed ExtraLight
+Noto Sans ExtraCondensed Light
+Noto Sans ExtraCondensed Medium
+Noto Sans ExtraCondensed SemiBold
+Noto Sans ExtraCondensed Thin
+Noto Sans ExtraLight
+Noto Sans Georgian
+Noto Sans Gothic
+Noto Sans Gujarati
+Noto Sans Gurmukhi
+Noto Sans Hebrew
+Noto Sans Hebrew Light
+Noto Sans Kannada
+Noto Sans Khmer
+Noto Sans Lao
+Noto Sans Light
+Noto Sans Math
+Noto Sans Medium
+Noto Sans Meetei Mayek
+Noto Sans Mono
+Noto Sans Mono Black
+Noto Sans Mono CJK HK
+Noto Sans Mono CJK JP
+Noto Sans Mono CJK KR
+Noto Sans Mono CJK SC
+Noto Sans Mono CJK TC
+Noto Sans Mono Condensed
+Noto Sans Mono Condensed Black
+Noto Sans Mono Condensed ExtraBold
+Noto Sans Mono Condensed ExtraLight
+Noto Sans Mono Condensed Light
+Noto Sans Mono Condensed Medium
+Noto Sans Mono Condensed SemiBold
+Noto Sans Mono Condensed Thin
+Noto Sans Mono ExtraBold
+Noto Sans Mono ExtraCondensed
+Noto Sans Mono ExtraCondensed Black
+Noto Sans Mono ExtraCondensed ExtraBold
+Noto Sans Mono ExtraCondensed ExtraLight
+Noto Sans Mono ExtraCondensed Light
+Noto Sans Mono ExtraCondensed Medium
+Noto Sans Mono ExtraCondensed SemiBold
+Noto Sans Mono ExtraCondensed Thin
+Noto Sans Mono ExtraLight
+Noto Sans Mono Light
+Noto Sans Mono Medium
+Noto Sans Mono SemiBold
+Noto Sans Mono SemiCondensed
+Noto Sans Mono SemiCondensed Black
+Noto Sans Mono SemiCondensed ExtraBold
+Noto Sans Mono SemiCondensed ExtraLight
+Noto Sans Mono SemiCondensed Light
+Noto Sans Mono SemiCondensed Medium
+Noto Sans Mono SemiCondensed SemiBold
+Noto Sans Mono SemiCondensed Thin
+Noto Sans Mono Thin
+Noto Sans NKo
+Noto Sans Ol Chiki
+Noto Sans Oriya
+Noto Sans SemiBold
+Noto Sans SemiCondensed
+Noto Sans SemiCondensed Black
+Noto Sans SemiCondensed ExtraBold
+Noto Sans SemiCondensed ExtraLight
+Noto Sans SemiCondensed Light
+Noto Sans SemiCondensed Medium
+Noto Sans SemiCondensed SemiBold
+Noto Sans SemiCondensed Thin
+Noto Sans Sinhala
+Noto Sans Symbols
+Noto Sans Symbols 2
+Noto Sans Syriac
+Noto Sans Tamil
+Noto Sans Telugu
+Noto Sans Thaana
+Noto Sans Thai
+Noto Sans Thin
+Noto Sans Yi
+Noto Serif
+Noto Serif Armenian
+Noto Serif Bengali
+Noto Serif Black
+Noto Serif CJK HK
+Noto Serif CJK JP
+Noto Serif CJK KR
+Noto Serif CJK SC
+Noto Serif CJK TC
+Noto Serif Condensed
+Noto Serif Condensed Black
+Noto Serif Condensed ExtraBold
+Noto Serif Condensed ExtraLight
+Noto Serif Condensed Light
+Noto Serif Condensed Medium
+Noto Serif Condensed SemiBold
+Noto Serif Condensed Thin
+Noto Serif Devanagari
+Noto Serif Ethiopic
+Noto Serif ExtraBold
+Noto Serif ExtraCondensed
+Noto Serif ExtraCondensed Black
+Noto Serif ExtraCondensed ExtraBold
+Noto Serif ExtraCondensed ExtraLight
+Noto Serif ExtraCondensed Light
+Noto Serif ExtraCondensed Medium
+Noto Serif ExtraCondensed SemiBold
+Noto Serif ExtraCondensed Thin
+Noto Serif ExtraLight
+Noto Serif Georgian
+Noto Serif Gujarati
+Noto Serif Gurmukhi
+Noto Serif Hebrew
+Noto Serif Kannada
+Noto Serif Khmer
+Noto Serif Lao
+Noto Serif Light
+Noto Serif Medium
+Noto Serif Oriya
+Noto Serif SemiBold
+Noto Serif SemiCondensed
+Noto Serif SemiCondensed Black
+Noto Serif SemiCondensed ExtraBold
+Noto Serif SemiCondensed ExtraLight
+Noto Serif SemiCondensed Light
+Noto Serif SemiCondensed Medium
+Noto Serif SemiCondensed SemiBold
+Noto Serif SemiCondensed Thin
+Noto Serif Sinhala
+Noto Serif Tamil
+Noto Serif Telugu
+Noto Serif Thai
+Noto Serif Thin
+Open Sans
+Open Sans Extrabold
+Open Sans Light
+Open Sans Semibold
+OpenSymbol
+P052
+Padauk
+PakType Naskh Basic
+PakType Naskh Basic Semi Wide
+PakType Naskh Basic Wide
+RIT Meera New
+RIT Rachana
+Standard Symbols PS
+STIX Two Math
+STIX Two Text
+STIX Two Text Medium
+STIX Two Text SemiBold
+Symbola
+URW Bookman
+URW Gothic
+Vazirmatn
+Z003
+ആർഐടി രചന
+രചന

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
+
+case "${1:-check}" in
+  check)
+    fedora_output="$(dnf --setopt=logdir=/tmp check-upgrade -q 2>/dev/null || true)"
+    fedora_count="$(printf '%s\n' "$fedora_output" | awk '$1 ~ /\.(aarch64|noarch|x86_64)$/ {count++} END {print count+0}')"
+    brew_count="$(brew outdated --quiet 2>/dev/null | wc -l)"
+    total=$((fedora_count + brew_count))
+    if ((total > 0)); then
+      jq -nc --arg text "󰚰 $total" --arg tooltip "$fedora_count Fedora • $brew_count Homebrew updates" '{text:$text,tooltip:$tooltip,class:"available"}'
+    else
+      jq -nc '{text:"",tooltip:"System is current",class:"current"}'
+    fi
+    ;;
+  run)
+    exec kitty bash -lc 'sudo dnf upgrade; brew upgrade; printf "\nUpdates complete. Press Enter to close."; read -r'
+    ;;
+  *) printf 'Usage: obsidian-updates {check|run}\n' >&2; exit 2 ;;
+esac

@@ -1,0 +1,13 @@
+Snapshot time: 2026-08-13T09:36:52+02:00
+Operating system: Fedora Linux Asahi Remix 44 (KDE Plasma Desktop Edition)
+Architecture: aarch64
+Kernel: 7.0.13-400.asahi.fc44.aarch64+16k
+Desktop session: Hyprland
+Hyprland: 0.56.0
+Waybar: 0.15.0
+Monitor: eDP-1, 2560x1664 at 60 Hz, scale 1.6, transform 0
+Waybar requested/verified rendered height: 30 px
+Waybar top/left/right margins: 8/10/10 px
+Hyprland inner/outer gaps: 4/8 px
+Theme: obsidian-ember
+Current wallpaper: themes/obsidian-ember/wallpapers/ghibli-laputa-city.jpg

@@ -1,0 +1,43 @@
+configuration {
+  modi: "drun,run,window";
+  show-icons: true;
+  icon-theme: "Papirus-Dark";
+  drun-display-format: "{name}";
+  font: "JetBrainsMono Nerd Font 12";
+}
+
+@theme "/dev/null"
+@import "../obsidian-ember/current/rofi.rasi"
+
+* {
+  background-color: transparent;
+  text-color: @fg;
+  margin: 0;
+  padding: 0;
+  spacing: 0;
+}
+
+window {
+  width: 640px;
+  location: center;
+  anchor: center;
+  background-color: @bg;
+  border: 1px;
+  border-color: @border;
+  border-radius: 16px;
+}
+
+mainbox { padding: 16px; spacing: 12px; }
+inputbar {
+  children: [prompt, entry];
+  background-color: @panel;
+  border-radius: 11px;
+  padding: 14px;
+}
+prompt { text-color: @accent; padding: 0 10px 0 2px; }
+entry { placeholder: "Search apps, commands, and windows…"; placeholder-color: @muted; }
+listview { lines: 8; columns: 1; fixed-height: true; spacing: 5px; }
+element { padding: 11px 12px; border-radius: 10px; }
+element selected { background-color: @selected; text-color: @accent; }
+element-icon { size: 24px; margin: 0 12px 0 0; }
+element-text { vertical-align: 0.5; }

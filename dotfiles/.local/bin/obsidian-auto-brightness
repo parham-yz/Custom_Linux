@@ -1,0 +1,255 @@
+#!/usr/bin/env bash
+set -u
+
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/obsidian-ember/auto-brightness"
+runtime_dir="${XDG_RUNTIME_DIR:-/tmp}/obsidian-ember-auto-brightness"
+disabled_file="$state_dir/disabled"
+pause_file="$runtime_dir/pause-until"
+iio_root="${OBSIDIAN_IIO_ROOT:-/sys/bus/iio/devices}"
+backlight_device="${OBSIDIAN_BACKLIGHT_DEVICE:-apple-panel-bl}"
+ac_online_path="${OBSIDIAN_AC_ONLINE_PATH:-/sys/class/power_supply/macsmc-ac/online}"
+poll_seconds="${OBSIDIAN_AUTO_BRIGHTNESS_POLL_SECONDS:-2}"
+deadband="${OBSIDIAN_AUTO_BRIGHTNESS_DEADBAND:-3}"
+max_step="${OBSIDIAN_AUTO_BRIGHTNESS_MAX_STEP:-4}"
+
+ensure_state_dirs() {
+  mkdir -p "$state_dir" "$runtime_dir"
+}
+
+sensor_dir() {
+  local directory name
+
+  for directory in "$iio_root"/iio:device*; do
+    [[ -d "$directory" && -r "$directory/name" ]] || continue
+    name="$(<"$directory/name")"
+    # The downstream driver has used both ALS and LAS spellings.
+    if [[ "$name" == "aop-sensors-als" || "$name" == "aop-sensors-las" ]] &&
+       [[ -r "$directory/in_illuminance_input" || -r "$directory/in_illuminance_raw" ]]; then
+      printf '%s\n' "$directory"
+      return 0
+    fi
+  done
+
+  # This fallback also supports non-Apple laptops with an IIO light sensor.
+  for directory in "$iio_root"/iio:device*; do
+    [[ -d "$directory" ]] || continue
+    if [[ -r "$directory/in_illuminance_input" || -r "$directory/in_illuminance_raw" ]]; then
+      printf '%s\n' "$directory"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+read_lux() {
+  local directory="$1" raw scale offset
+
+  if [[ -r "$directory/in_illuminance_input" ]]; then
+    tr -d '[:space:]' < "$directory/in_illuminance_input"
+    return
+  fi
+
+  raw="$(<"$directory/in_illuminance_raw")"
+  scale=1
+  offset=0
+  [[ -r "$directory/in_illuminance_scale" ]] && scale="$(<"$directory/in_illuminance_scale")"
+  [[ -r "$directory/in_illuminance_offset" ]] && offset="$(<"$directory/in_illuminance_offset")"
+  awk -v raw="$raw" -v scale="$scale" -v offset="$offset" \
+    'BEGIN { printf "%.3f\n", (raw + offset) * scale }'
+}
+
+raw_target_for_lux() {
+  # Piecewise interpolation avoids an overly bright screen in normal rooms.
+  # Points are ambient lux -> panel percent.
+  awk -v lux="$1" '
+    BEGIN {
+      lx[1]=0;    pct[1]=7
+      lx[2]=5;    pct[2]=14
+      lx[3]=20;   pct[3]=23
+      lx[4]=80;   pct[4]=35
+      lx[5]=250;  pct[5]=48
+      lx[6]=600;  pct[6]=60
+      lx[7]=1200; pct[7]=72
+      lx[8]=3000; pct[8]=86
+      lx[9]=8000; pct[9]=100
+
+      if (lux <= lx[1]) { print pct[1]; exit }
+      for (i=2; i<=9; i++) {
+        if (lux <= lx[i]) {
+          value=pct[i-1] + (lux-lx[i-1]) * (pct[i]-pct[i-1]) / (lx[i]-lx[i-1])
+          printf "%d\n", value + 0.5
+          exit
+        }
+      }
+      print pct[9]
+    }'
+}
+
+target_for_lux() {
+  local target
+  target="$(raw_target_for_lux "$1")"
+  if [[ -r "$ac_online_path" ]] &&
+     [[ "$(<"$ac_online_path")" == 0 ]] &&
+     ((target > 55)); then
+    target=55
+  fi
+  printf '%s\n' "$target"
+}
+
+current_brightness() {
+  brightnessctl -d "$backlight_device" -m 2>/dev/null | awk -F, '{ gsub("%", "", $4); print $4 }'
+}
+
+set_brightness() {
+  local percent="$1"
+
+  if [[ "${OBSIDIAN_AUTO_BRIGHTNESS_DRY_RUN:-0}" == 1 ]]; then
+    printf 'Would set %s to %s%%\n' "$backlight_device" "$percent"
+  else
+    brightnessctl -q -d "$backlight_device" set "$percent%"
+  fi
+}
+
+is_paused() {
+  local now until
+  [[ -r "$pause_file" ]] || return 1
+  now="$(date +%s)"
+  until="$(<"$pause_file")"
+  [[ "$until" =~ ^[0-9]+$ && "$until" -gt "$now" ]]
+}
+
+adjust_once() {
+  local directory lux target current difference next
+  directory="$(sensor_dir)" || return 3
+  lux="$(read_lux "$directory")" || return 3
+  target="$(target_for_lux "$lux")"
+  current="$(current_brightness)" || return 4
+  [[ "$current" =~ ^[0-9]+$ ]] || return 4
+
+  difference=$(( target - current ))
+  (( difference < 0 )) && difference=$(( -difference ))
+  (( difference >= deadband )) || return 0
+
+  next="$target"
+  (( target > current + max_step )) && next=$(( current + max_step ))
+  (( target < current - max_step )) && next=$(( current - max_step ))
+  set_brightness "$next"
+}
+
+run_daemon() {
+  local directory missing_reported=0 lux filtered target current difference next
+
+  while true; do
+    if [[ -f "$disabled_file" ]] || is_paused; then
+      sleep "$poll_seconds"
+      continue
+    fi
+
+    directory="$(sensor_dir)" || {
+      if (( missing_reported == 0 )); then
+        printf '%s\n' 'Ambient-light sensor unavailable; waiting for aop-sensors-als.' >&2
+        missing_reported=1
+      fi
+      # Firmware repair requires a reboot, so avoid waking every 30 seconds
+      # while the calibrated ALS device is absent.
+      sleep 300
+      continue
+    }
+    missing_reported=0
+
+    lux="$(read_lux "$directory")" || { sleep "$poll_seconds"; continue; }
+    if [[ -z "${filtered:-}" ]]; then
+      filtered="$lux"
+    else
+      filtered="$(awk -v old="$filtered" -v new="$lux" 'BEGIN { printf "%.3f", old * 0.75 + new * 0.25 }')"
+    fi
+
+    target="$(target_for_lux "$filtered")"
+    current="$(current_brightness)" || { sleep 10; continue; }
+    [[ "$current" =~ ^[0-9]+$ ]] || { sleep 10; continue; }
+
+    # Zero is used when the display is intentionally blanked. Never wake it.
+    if (( current == 0 )); then
+      sleep "$poll_seconds"
+      continue
+    fi
+
+    difference=$(( target - current ))
+    (( difference < 0 )) && difference=$(( -difference ))
+
+    if (( difference >= deadband )); then
+      next="$target"
+      (( target > current + max_step )) && next=$(( current + max_step ))
+      (( target < current - max_step )) && next=$(( current - max_step ))
+      set_brightness "$next" || { sleep 10; continue; }
+    fi
+
+    sleep "$poll_seconds"
+  done
+}
+
+show_status() {
+  local directory lux state service brightness
+  state=enabled
+  [[ -f "$disabled_file" ]] && state=disabled
+  service="$(systemctl --user is-active obsidian-auto-brightness.service 2>/dev/null || true)"
+  brightness="$(current_brightness || printf 'unavailable')"
+
+  printf 'Automatic brightness: %s\nService: %s\nPanel brightness: %s%%\n' \
+    "$state" "${service:-unknown}" "$brightness"
+
+  if directory="$(sensor_dir)"; then
+    lux="$(read_lux "$directory")"
+    printf 'Sensor: %s\nAmbient light: %s lux\nTarget: %s%%\n' \
+      "$(<"$directory/name")" "$lux" "$(target_for_lux "$lux")"
+  else
+    printf '%s\n' \
+      'Sensor: unavailable (aop-als calibration firmware is probably missing)' \
+      'Repair: boot macOS Recovery, run the Asahi installer, and choose "Rebuild vendor firmware package".'
+    return 1
+  fi
+}
+
+case "${1:-status}" in
+  daemon)
+    ensure_state_dirs
+    run_daemon
+    ;;
+  once)
+    adjust_once
+    ;;
+  pause)
+    ensure_state_dirs
+    seconds="${2:-120}"
+    [[ "$seconds" =~ ^[0-9]+$ ]] || { printf 'Pause must be seconds.\n' >&2; exit 2; }
+    printf '%s\n' "$(( $(date +%s) + seconds ))" > "$pause_file"
+    ;;
+  enable)
+    ensure_state_dirs
+    rm -f "$disabled_file"
+    notify-send 'Automatic brightness' 'Enabled' 2>/dev/null || true
+    ;;
+  disable)
+    ensure_state_dirs
+    : > "$disabled_file"
+    notify-send 'Automatic brightness' 'Disabled' 2>/dev/null || true
+    ;;
+  toggle)
+    if [[ -f "$disabled_file" ]]; then
+      "$0" enable
+    else
+      "$0" disable
+    fi
+    ;;
+  status)
+    show_status
+    ;;
+  target)
+    target_for_lux "${2:?lux value required}"
+    ;;
+  *)
+    printf 'Usage: obsidian-auto-brightness {status|enable|disable|toggle|pause [seconds]|once|daemon}\n' >&2
+    exit 2
+    ;;
+esac

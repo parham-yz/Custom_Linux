@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mapfile -t addresses < <(hyprctl clients -j | jq -r '.[].address')
+for address in "${addresses[@]}"; do
+  hyprctl dispatch closewindow "address:$address" >/dev/null || true
+done

@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
+
+choose() {
+  local prompt="$1" message="$2"
+  shift 2
+  printf '%s\n' "$@" | rofi -dmenu -i -p "$prompt" -mesg "$message"
+}
+
+confirm() {
+  local action="$1"
+  [[ "$(choose 'Confirm' "$action" 'Cancel' "$action")" == "$action" ]]
+}
+
+root_menu() {
+  local choice
+  choice="$(choose ' OMA ' 'Obsidian Ember • Omarchy controls for Fedora Asahi' \
+    '󰀻  Applications' \
+    '󰄀  Capture' \
+    '󰏘  Style' \
+    '󰔡  Toggle' \
+    '󰒓  System' \
+    '󰘳  Utilities' \
+    '󰒓  Setup' \
+    '󰌌  Keybindings' \
+    '󰋼  About')"
+  case "$choice" in
+    *Applications) rofi -show drun -show-icons ;;
+    *Capture) exec "$0" capture ;;
+    *Style) exec "$0" style ;;
+    *Toggle) exec "$0" toggle ;;
+    *System) exec "$0" system ;;
+    *Utilities) exec "$0" utilities ;;
+    *Setup) exec "$0" setup ;;
+    *Keybindings) obsidian-keybindings ;;
+    *About) notify-send 'Obsidian Ember' 'Omarchy-inspired Fedora Asahi desktop • Super+K shows every shortcut' ;;
+  esac
+}
+
+capture_menu() {
+  local choice
+  choice="$(choose 'Capture' 'Selections are copied and saved to Pictures/Screenshots' \
+    '󰹑  Region screenshot' \
+    '󰍹  Full-screen screenshot' \
+    '󰖲  Active-window screenshot' \
+    '󰑋  Screen recording' \
+    '󰐲  Extract text (OCR)' \
+    '󰏘  Pick color')"
+  case "$choice" in
+    *Region*) obsidian-capture region ;;
+    *Full-screen*) obsidian-capture screen ;;
+    *Active-window*) obsidian-capture window ;;
+    *recording*) obsidian-record menu ;;
+    *OCR*) obsidian-capture ocr ;;
+    *color*) obsidian-capture color ;;
+  esac
+}
+
+style_menu() {
+  local choice
+  choice="$(choose 'Style' "Current theme: $(obsidian-theme current)" \
+    '󰏘  Choose theme' \
+    '󰸉  Choose wallpaper' \
+    '󰸉  Next wallpaper' \
+    '󰍜  Toggle top bar' \
+    '󰇙  Toggle window gaps' \
+    '󰑓  Reload desktop')"
+  case "$choice" in
+    *theme) obsidian-theme switch ;;
+    *Choose\ wallpaper) obsidian-theme wallpaper ;;
+    *Next\ wallpaper) obsidian-theme next-background ;;
+    *top\ bar) obsidian-toggle bar ;;
+    *window\ gaps) obsidian-toggle gaps ;;
+    *Reload*) obsidian-toggle reload ;;
+  esac
+}
+
+toggle_menu() {
+  local choice
+  choice="$(choose 'Toggle' 'Fast desktop state switches' \
+    '󰃠  Automatic brightness' \
+    '󰒲  Idle/sleep prevention' \
+    '󰾅  Power saver' \
+    '󰖔  Night light' \
+    '󰂛  Notification silence' \
+    '󰍜  Top bar' \
+    '󰇙  Window gaps')"
+  case "$choice" in
+    *Automatic*) obsidian-toggle autobrightness ;;
+    *Idle*) obsidian-toggle idle ;;
+    *Power*) obsidian-power toggle ;;
+    *Night*) obsidian-toggle nightlight ;;
+    *Notification*) obsidian-toggle notifications ;;
+    *Top\ bar) obsidian-toggle bar ;;
+    *Window\ gaps) obsidian-toggle gaps ;;
+  esac
+}
+
+system_menu() {
+  local lock_label='󰌾  Lock'
+  command -v swaylock >/dev/null || lock_label='󰌾  Lock (install swaylock)'
+  local choice
+  choice="$(choose 'System' 'Power actions ask for confirmation' \
+    "$lock_label" \
+    '󰤄  Suspend' \
+    '󰍃  Log out' \
+    '󰜉  Reboot' \
+    '󰐥  Power off')"
+  case "$choice" in
+    *Lock*)
+      if command -v swaylock >/dev/null; then swaylock -f -c 0d0c0c; else notify-send 'Lock unavailable' 'Install swaylock: sudo dnf install swaylock'; fi
+      ;;
+    *Suspend) confirm 'Suspend' && systemctl suspend ;;
+    *Log\ out) confirm 'Log out' && hyprctl dispatch exit ;;
+    *Reboot) confirm 'Reboot' && systemctl reboot ;;
+    *Power\ off) confirm 'Power off' && systemctl poweroff ;;
+  esac
+}
+
+utilities_menu() {
+  local choice
+  choice="$(choose 'Utilities' 'Omarchy-style quick tools' \
+    '󰾅  Power and battery status' \
+    '󰅌  Clipboard history' \
+    '󰞅  Emoji picker' \
+    '󰔛  Set reminder' \
+    '󰔛  Show reminders' \
+    '󰃭  Date and time notice' \
+    '󰁹  Battery notice' \
+    '󰖐  Weather notice' \
+    '󰓅  System activity' \
+    '󰓃  Audio controls' \
+    '󰖩  Wi-Fi controls' \
+    '󰂯  Bluetooth controls' \
+    '󰆍  Terminal' \
+    '󰉋  Files')"
+  case "$choice" in
+    *Power*) obsidian-power notice ;;
+    *Clipboard*) obsidian-clipboard open ;;
+    *Emoji*) obsidian-emoji ;;
+    *Set\ reminder) obsidian-reminder set ;;
+    *Show\ reminders) obsidian-reminder show ;;
+    *Date*) obsidian-notice time ;;
+    *Battery*) obsidian-notice battery ;;
+    *Weather*) obsidian-notice weather ;;
+    *activity) kitty btop --force-utf --config "$HOME/.config/btop/obsidian-ember.conf" ;;
+    *Audio*) if command -v pavucontrol >/dev/null; then pavucontrol; else kitty alsamixer; fi ;;
+    *Wi-Fi*) nm-connection-editor ;;
+    *Bluetooth*) systemsettings kcm_bluetooth ;;
+    *Terminal) kitty ;;
+    *Files) dolphin ;;
+  esac
+}
+
+setup_menu() {
+  local choice theme
+  theme="$(obsidian-theme current)"
+  choice="$(choose 'Setup' 'Configuration and maintenance' \
+    '󰚰  Upgrade Fedora Asahi to 44' \
+    '󰒓  Edit Hyprland config' \
+    '󰍜  Edit Waybar config' \
+    '󰆍  Edit terminal config' \
+    '󰸉  Open theme wallpapers' \
+    '󰒓  KDE system settings' \
+    '󰚰  Update Fedora + Homebrew' \
+    '󰑓  Reload desktop')"
+  case "$choice" in
+    *Upgrade*) obsidian-asahi-upgrade ;;
+    *Hyprland*) kitty nvim "$HOME/.config/hypr/hyprland.conf" ;;
+    *Waybar*) kitty nvim "$HOME/.config/waybar/config" ;;
+    *terminal*) kitty nvim "$HOME/.config/kitty/kitty.conf" ;;
+    *wallpapers*) dolphin "$HOME/.config/obsidian-ember/backgrounds/$theme" ;;
+    *system\ settings*) systemsettings ;;
+    *Update*) obsidian-updates run ;;
+    *Reload*) obsidian-toggle reload ;;
+  esac
+}
+
+case "${1:-root}" in
+  root) root_menu ;;
+  capture) capture_menu ;;
+  style) style_menu ;;
+  toggle) toggle_menu ;;
+  system) system_menu ;;
+  utilities) utilities_menu ;;
+  setup) setup_menu ;;
+  *) root_menu ;;
+esac

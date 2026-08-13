@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "${1:-bar}" in
+  bar)
+    curl -fsS --max-time 8 'https://wttr.in/?format=%c+%t' 2>/dev/null || true
+    ;;
+  notice) exec obsidian-notice weather ;;
+  *) printf 'Usage: obsidian-weather {bar|notice}\n' >&2; exit 2 ;;
+esac

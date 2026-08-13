@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+temporary="$(mktemp -d /tmp/obsidian-wlsunset.XXXXXX)"
+trap 'rm -rf "$temporary"' EXIT
+
+dnf --setopt=logdir=/tmp download --destdir="$temporary" --arch="$(uname -m)" wlsunset
+rpm_path="$(find "$temporary" -maxdepth 1 -name 'wlsunset-*.rpm' -print -quit)"
+[[ -f "$rpm_path" ]] || { printf 'Could not download wlsunset RPM\n' >&2; exit 1; }
+mkdir -p "$temporary/extracted"
+(
+  cd "$temporary/extracted"
+  rpm2cpio "$rpm_path" | cpio -idm
+)
+install -D -m 0755 "$temporary/extracted/usr/bin/wlsunset" "$HOME/.local/bin/wlsunset"
+printf 'Installed Fedora wlsunset to %s\n' "$HOME/.local/bin/wlsunset"

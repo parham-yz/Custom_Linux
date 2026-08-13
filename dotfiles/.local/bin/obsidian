@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+command_name="${1:-menu}"
+shift || true
+
+case "$command_name" in
+  menu) exec obsidian-menu "$@" ;;
+  theme) exec obsidian-theme "${@:-switch}" ;;
+  background|wallpaper) exec obsidian-theme "${1:-wallpaper}" ;;
+  screenshot|capture) exec obsidian-capture "${1:-region}" ;;
+  record) exec obsidian-record "${1:-menu}" ;;
+  clipboard) exec obsidian-clipboard "${1:-open}" ;;
+  emoji) exec obsidian-emoji ;;
+  reminder) exec obsidian-reminder "${1:-set}" ;;
+  notice) exec obsidian-notice "${1:-time}" ;;
+  toggle) exec obsidian-toggle "${1:-bar}" ;;
+  display) exec obsidian-display "${1:-next}" ;;
+  power) exec obsidian-power "${1:-status}" ;;
+  keys|keybindings) exec obsidian-keybindings ;;
+  updates) exec obsidian-updates "${1:-check}" ;;
+  reload) exec obsidian-toggle reload ;;
+  debug)
+    printf 'Theme: %s\n' "$(obsidian-theme current)"
+    printf 'Hyprland errors:\n'
+    hyprctl configerrors || true
+    printf 'Processes:\n'
+    pgrep -a -f 'waybar|mako|swaybg|obsidian-clipboard watch|wlsunset' || true
+    ;;
+  help|-h|--help)
+    cat <<'HELP'
+Obsidian Ember desktop command
+
+  obsidian menu [section]           Open the control surface
+  obsidian theme [switch|list]      Change the coordinated theme
+  obsidian wallpaper               Choose a theme wallpaper
+  obsidian capture [region|screen]  Take a screenshot
+  obsidian record [menu|toggle]     Record the screen
+  obsidian clipboard               Open clipboard history
+  obsidian reminder [set|show]      Manage reminders
+  obsidian toggle <feature>         autobrightness, bar, gaps, idle, nightlight, notifications
+  obsidian display [next|previous]  Change Retina scale
+  obsidian power [status|toggle]    Inspect or change energy mode
+  obsidian keys                     Search shortcuts
+  obsidian updates [status|run]     Check or install updates
+  obsidian reload                   Reload the desktop
+  obsidian debug                    Show live desktop health
+HELP
+    ;;
+  *) printf 'Unknown command: %s (try: obsidian help)\n' "$command_name" >&2; exit 2 ;;
+esac

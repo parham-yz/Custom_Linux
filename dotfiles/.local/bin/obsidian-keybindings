@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cat <<'KEYS' | rofi -dmenu -i -p 'Keybindings' -mesg 'Search all Obsidian Ember / Omarchy-style shortcuts' >/dev/null || true
+SUPER + SPACE                    Application launcher
+SUPER + ALT + SPACE              Obsidian control menu
+SUPER + ESCAPE                   System / power menu
+SUPER + K                        This searchable keybinding guide
+SUPER + RETURN                   Terminal
+SUPER + ALT + RETURN             Tmux terminal
+SUPER + SHIFT + RETURN           Browser
+SUPER + SHIFT + ALT + B          Private browser window
+SUPER + SHIFT + F                File manager
+SUPER + SHIFT + N                Neovim
+SUPER + W                        Close window
+SUPER + T                        Toggle floating / tiling
+SUPER + J                        Toggle split direction
+SUPER + P                        Toggle pseudotile
+SUPER + F                        Fullscreen
+SUPER + ARROWS                   Focus directional window
+SUPER + SHIFT + ARROWS           Swap directional window
+ALT + TAB                        Cycle windows
+SUPER + TAB                      Next workspace
+SUPER + SHIFT + TAB              Previous workspace
+SUPER + CTRL + TAB               Former workspace
+SUPER + 1..0                     Switch workspace
+SUPER + SHIFT + 1..0             Move window and follow
+SUPER + SHIFT + ALT + 1..0       Move window silently
+SUPER + S                        Toggle scratchpad
+SUPER + ALT + S                  Send window to scratchpad
+SUPER + G                        Toggle window group
+SUPER + ALT + G                  Move window out of group
+SUPER + ALT + TAB                Next grouped window
+SUPER + C                        Universal copy
+SUPER + V                        Universal paste
+SUPER + X                        Universal cut
+SUPER + CTRL + V                 Clipboard history
+SUPER + CTRL + E                 Emoji picker
+PRINT                            Region screenshot
+SHIFT + PRINT                    Full-screen screenshot
+ALT + PRINT                      Start / stop screen recording
+SUPER + PRINT                    Color picker
+SUPER + CTRL + PRINT             OCR text extraction
+SUPER + CTRL + C                 Capture menu
+SUPER + CTRL + T                 System activity
+SUPER + CTRL + A                 Audio controls
+SUPER + CTRL + W                 Wi-Fi controls
+SUPER + CTRL + R                 Set reminder
+SUPER + CTRL + ALT + R           Show reminders
+SUPER + CTRL + SHIFT + R         Clear reminders
+SUPER + CTRL + ALT + T           Date / time notice
+SUPER + CTRL + ALT + B           Battery notice
+SUPER + CTRL + ALT + W           Weather notice
+SUPER + CTRL + SPACE             Wallpaper picker
+SUPER + CTRL + SHIFT + SPACE     Theme picker
+SUPER + SHIFT + SPACE            Toggle top bar
+SUPER + SHIFT + BACKSPACE        Toggle window gaps
+SUPER + CTRL + I                 Toggle idle / sleep prevention
+SUPER + CTRL + N                 Toggle 4000 K night light
+SUPER + CTRL + P                 Toggle power-saver / balanced profile
+SUPER + COMMA                    Dismiss latest notification
+SUPER + SHIFT + COMMA            Dismiss all notifications
+SUPER + CTRL + COMMA             Toggle notification silence
+SUPER + ALT + COMMA              Invoke latest notification action
+SUPER + SHIFT + ALT + COMMA      Restore latest notification
+SUPER + /                        Next MacBook display scale
+SUPER + ALT + /                  Previous MacBook display scale
+ALT + VOLUME                     Precise 1% volume adjustment
+ALT + BRIGHTNESS                 Precise 1% brightness adjustment
+SHIFT + BRIGHTNESS UP            Maximum brightness
+SHIFT + BRIGHTNESS DOWN          Minimum brightness
+KEYS

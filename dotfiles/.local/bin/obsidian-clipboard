@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
+
+history_dir="${XDG_STATE_HOME:-$HOME/.local/state}/obsidian-ember/clipboard"
+watch_pid="$history_dir/watch.pid"
+wtype_bin="$(command -v wtype || true)"
+mkdir -p "$history_dir"
+
+terminal_active() {
+  local class
+  class="$(hyprctl activewindow -j 2>/dev/null | jq -r '.class // ""' | tr '[:upper:]' '[:lower:]')"
+  [[ "$class" =~ (kitty|konsole|alacritty|foot|wezterm|ghostty) ]]
+}
+
+send_copy() {
+  [[ -n "$wtype_bin" ]] || return 1
+  if terminal_active; then
+    "$wtype_bin" -M ctrl -M shift -k c -m shift -m ctrl
+  else
+    "$wtype_bin" -M ctrl -k c -m ctrl
+  fi
+}
+
+send_paste() {
+  [[ -n "$wtype_bin" ]] || return 1
+  if terminal_active; then
+    "$wtype_bin" -M ctrl -M shift -k v -m shift -m ctrl
+  else
+    "$wtype_bin" -M ctrl -k v -m ctrl
+  fi
+}
+
+store() {
+  local content hash path
+  content="$(head -c 1048576)"
+  [[ -n "$content" ]] || exit 0
+  hash="$(printf '%s' "$content" | sha256sum | cut -c1-16)"
+  find "$history_dir" -type f -name "*-$hash.txt" -delete
+  path="$history_dir/$(date +%s%N)-$hash.txt"
+  printf '%s' "$content" > "$path"
+  mapfile -t old_files < <(find "$history_dir" -type f -printf '%T@ %p\n' | sort -rn | cut -d' ' -f2- | tail -n +101)
+  ((${#old_files[@]} == 0)) || rm -f -- "${old_files[@]}"
+}
+
+open_history() {
+  local index preview
+  local -a entries=() labels=()
+  mapfile -t entries < <(find "$history_dir" -type f -printf '%T@ %p\n' | sort -rn | cut -d' ' -f2-)
+  ((${#entries[@]})) || { notify-send 'Clipboard' 'History is empty'; exit 0; }
+  for entry in "${entries[@]}"; do
+    preview="$(tr '\n\t' '  ' < "$entry" | sed 's/  */ /g' | cut -c1-110)"
+    labels+=("$preview")
+  done
+  index="$(printf '%s\n' "${labels[@]}" | rofi -dmenu -i -p 'Clipboard' -format i)"
+  [[ "$index" =~ ^[0-9]+$ ]] || exit 0
+  wl-copy < "${entries[$index]}"
+  sleep 0.12
+  send_paste || true
+}
+
+case "${1:-open}" in
+  watch)
+    if [[ -f "$watch_pid" ]] && [[ "$(<"$watch_pid")" != "$$" ]] && kill -0 "$(<"$watch_pid")" 2>/dev/null; then
+      exit 0
+    fi
+    printf '%s\n' "$$" > "$watch_pid"
+    trap 'rm -f "$watch_pid"' EXIT
+    wl-paste --type text --watch "$0" store
+    ;;
+  status)
+    [[ -f "$watch_pid" ]] && kill -0 "$(<"$watch_pid")" 2>/dev/null
+    ;;
+  store) store ;;
+  open) open_history ;;
+  copy) send_copy ;;
+  paste) send_paste ;;
+  cut) "$wtype_bin" -M ctrl -k x -m ctrl ;;
+  clear) find "$history_dir" -type f -delete; notify-send 'Clipboard' 'History cleared' ;;
+  *) printf 'Usage: obsidian-clipboard {watch|status|store|open|copy|paste|cut|clear}\n' >&2; exit 2 ;;
+esac

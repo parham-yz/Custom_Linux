@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+output="${OBSIDIAN_INTERNAL_DISPLAY:-eDP-1}"
+current="$(hyprctl monitors -j | jq -r ".[] | select(.name == \"$output\") | .scale")"
+scales=(1.5 1.6 1.75 2.0)
+index=1
+
+for i in "${!scales[@]}"; do
+  if awk -v a="$current" -v b="${scales[$i]}" 'BEGIN { exit !((a-b < 0.02) && (b-a < 0.02)) }'; then
+    index="$i"
+    break
+  fi
+done
+
+case "${1:-next}" in
+  next) index=$(( (index + 1) % ${#scales[@]} )) ;;
+  previous) index=$(( (index - 1 + ${#scales[@]}) % ${#scales[@]} )) ;;
+  *) printf 'Usage: obsidian-display {next|previous}\n' >&2; exit 2 ;;
+esac
+
+scale="${scales[$index]}"
+hyprctl keyword monitor "$output,preferred,auto,$scale"
+notify-send 'Display scale' "$scale • notch reserve remains centered"

@@ -1,0 +1,10 @@
+[Unit]
+Description=Obsidian Ember AC and battery power policy
+Documentation=https://fedoraproject.org/wiki/Changes/TunedAsTheDefaultPowerProfileManagementDaemon
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/obsidian-power daemon
+Restart=always
+RestartSec=3
+TimeoutStopSec=5

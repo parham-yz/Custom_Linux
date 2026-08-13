@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+wrong_argument='apple_dcp.show_notch=Y'
+right_argument='appledrm.show_notch=Y'
+
+show_status() {
+  local active='unknown'
+
+  if [[ -r /sys/module/appledrm/parameters/show_notch ]]; then
+    active="$(</sys/module/appledrm/parameters/show_notch)"
+  fi
+
+  printf 'Active notch mode: %s\n' "$active"
+  printf 'Current boot argument: '
+  if grep -qw "$right_argument" /proc/cmdline; then
+    printf '%s\n' "$right_argument"
+  elif grep -qw "$wrong_argument" /proc/cmdline; then
+    printf '%s (incorrect driver name)\n' "$wrong_argument"
+  else
+    printf 'not configured\n'
+  fi
+}
+
+enable_notch() {
+  local stamp
+
+  if (( EUID != 0 )); then
+    exec pkexec "$0" enable
+  fi
+
+  stamp="$(date +%Y%m%d-%H%M%S)"
+  for file in /etc/kernel/cmdline /etc/default/grub; do
+    [[ -f "$file" ]] || continue
+    cp -a -- "$file" "$file.before-obsidian-notch-$stamp"
+    sed -i -E 's/apple_dcp\.show_notch=[^[:space:]"]+/appledrm.show_notch=Y/g' "$file"
+  done
+
+  if [[ -f /etc/kernel/cmdline ]] &&
+     ! grep -qw "$right_argument" /etc/kernel/cmdline; then
+    sed -i "s/$/ $right_argument/" /etc/kernel/cmdline
+  fi
+
+  if [[ -f /etc/default/grub ]] &&
+     ! grep -qw "$right_argument" /etc/default/grub; then
+    sed -i -E "/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/\"$/ $right_argument\"/" /etc/default/grub
+  fi
+
+  grubby --update-kernel=ALL \
+    --remove-args="$wrong_argument" \
+    --args="$right_argument"
+
+  printf '%s\n' \
+    'Full-height MacBook notch mode is configured.' \
+    'Reboot to expose the 2560x1664 display mode.'
+}
+
+case "${1:-status}" in
+  enable) enable_notch ;;
+  status) show_status ;;
+  *) printf 'Usage: obsidian-enable-notch {status|enable}\n' >&2; exit 2 ;;
+esac

@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+set -u
+
+theme="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/network.rasi"
+notify_id="obsidian-network"
+
+# A second click on the Waybar icon closes this flyout (including its password
+# prompt) instead of spawning another copy.
+mapfile -t open_flyouts < <(pgrep -u "$UID" -f 'rofi .*network\.rasi' 2>/dev/null || true)
+if (( ${#open_flyouts[@]} )); then
+  kill "${open_flyouts[@]}" 2>/dev/null || true
+  exit 0
+fi
+
+notice() {
+  notify-send -a 'Network' -h "string:x-canonical-private-synchronous:$notify_id" "$1" "${2:-}"
+}
+
+wifi_state="$(nmcli -t -f WIFI general 2>/dev/null || printf 'disabled')"
+if [[ "$wifi_state" != enabled ]]; then
+  choice="$(printf '%s\n' '󰖩  Turn Wi-Fi On' | rofi -dmenu -i -click-to-exit -p 'Wi-Fi' -mesg 'Wi-Fi is off' -theme "$theme")" || exit 0
+  if [[ -n "$choice" ]] && nmcli radio wifi on; then
+    notice 'Wi-Fi' 'Turned on'
+    sleep 1
+    exec "$0"
+  fi
+  exit 0
+fi
+
+# Use NetworkManager's cached scan for an instant-open menu. NetworkManager
+# refreshes this cache itself; forcing a scan here was the source of the delay.
+scan_file="$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/obsidian-network-scan.XXXXXX")"
+nmcli -t -f ACTIVE,SSID,SIGNAL,SECURITY device wifi list --rescan no >"$scan_file" 2>/dev/null || true
+
+active_ssid="$(awk -F ':' '
+  $1 == "yes" {
+    print substr($0, length($1) + 2, length($0) - length($1) - length($(NF - 1)) - length($NF) - 3)
+    exit
+  }
+' "$scan_file")"
+mapfile -t rows < <(
+  awk -F ':' '
+      {
+        active = $1
+        security_value = $NF
+        signal = $(NF - 1)
+        ssid = substr($0, length(active) + 2, length($0) - length(active) - length(signal) - length(security_value) - 3)
+        if (ssid != "" && (!seen[ssid] || signal > strength[ssid])) {
+          seen[ssid] = 1; strength[ssid] = signal; secured[ssid] = security_value
+        }
+      }
+      END { for (ssid in seen) print strength[ssid] "|" secured[ssid] "|" ssid }
+    ' "$scan_file" | sort -t '|' -k1,1nr
+)
+rm -f -- "$scan_file"
+
+labels=('󰖩  Turn Wi-Fi Off')
+ssids=('')
+securities=('')
+selected_index=0
+
+for row in "${rows[@]}"; do
+  IFS='|' read -r signal security ssid <<< "$row"
+  (( signal >= 75 )) && bars='󰤨' || { (( signal >= 50 )) && bars='󰤥' || { (( signal >= 25 )) && bars='󰤢' || bars='󰤟'; }; }
+  [[ -n "$security" && "$security" != '--' ]] && lock='' || lock=' '
+  [[ "$ssid" == "$active_ssid" ]] && marker='✓' || marker=' '
+  [[ "$ssid" == "$active_ssid" ]] && selected_index="${#labels[@]}"
+  display_ssid="${ssid:0:18}"
+  printf -v label '%s  %s  %-18s  %s  %3s%%' "$marker" "$bars" "$display_ssid" "$lock" "$signal"
+  labels+=("$label")
+  ssids+=("$ssid")
+  securities+=("$security")
+done
+
+labels+=('󰒓  Network Settings…')
+ssids+=('')
+securities+=('')
+
+message='Select a network to connect'
+[[ -n "$active_ssid" ]] && message="Connected to $active_ssid"
+index="$(printf '%s\n' "${labels[@]}" | rofi -dmenu -i -click-to-exit -p 'Wi-Fi' -mesg "$message" -format i -selected-row "$selected_index" -theme "$theme")" || exit 0
+
+if [[ "$index" == 0 ]]; then
+  if nmcli radio wifi off; then notice 'Wi-Fi' 'Turned off'; fi
+  exit 0
+fi
+
+last_index=$(( ${#labels[@]} - 1 ))
+if (( index == last_index )); then
+  exec nm-connection-editor
+fi
+
+ssid="${ssids[index]}"
+security="${securities[index]}"
+[[ "$ssid" == "$active_ssid" ]] && exit 0
+
+notice 'Wi-Fi' "Connecting to $ssid…"
+
+# NetworkManager reuses saved credentials automatically. Only ask for a
+# password when the first connection attempt says secrets are required.
+error_file="$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/obsidian-network.XXXXXX")"
+if nmcli --wait 20 device wifi connect "$ssid" 2>"$error_file"; then
+  rm -f -- "$error_file"
+  notice 'Wi-Fi connected' "$ssid"
+  exit 0
+fi
+
+error="$(<"$error_file")"
+rm -f -- "$error_file"
+
+if [[ -n "$security" && "$security" != '--' ]] && [[ "$error" == *'Secrets were required'* || "$error" == *'password'* || "$error" == *'802-11-wireless-security'* ]]; then
+  password="$(printf '' | rofi -dmenu -password -click-to-exit -p 'Password' -mesg "$ssid" -theme "$theme")" || exit 0
+  [[ -z "$password" ]] && exit 0
+  if nmcli --wait 30 device wifi connect "$ssid" password "$password"; then
+    notice 'Wi-Fi connected' "$ssid"
+  else
+    notice 'Could not connect' "Check the password for $ssid"
+  fi
+else
+  notice 'Could not connect' "${error:-NetworkManager returned an error}"
+fi

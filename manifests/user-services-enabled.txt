@@ -1,0 +1,14 @@
+dbus-broker.service
+dbus.socket
+firecrawl-safe.service
+gnome-keyring-daemon.socket
+grub-boot-success.timer
+hyprwhspr.service
+obex.service
+obsidian-auto-brightness.service
+pipewire-pulse.socket
+pipewire.socket
+systemd-tmpfiles-clean.timer
+systemd-tmpfiles-setup.service
+wireplumber.service
+xdg-user-dirs.service

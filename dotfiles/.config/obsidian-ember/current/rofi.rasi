@@ -1,0 +1,9 @@
+* {
+  bg: #0d0c0cf2;
+  panel: #181513fa;
+  selected: #362d26ff;
+  border: #5a463288;
+  fg: #eee5d8ff;
+  muted: #9f9183ff;
+  accent: #d6a15fff;
+}

@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_root="${XDG_CONFIG_HOME:-$HOME/.config}/obsidian-ember"
+state_root="${XDG_STATE_HOME:-$HOME/.local/state}/obsidian-ember"
+themes_root="$config_root/themes"
+templates_root="$config_root/theme-templates"
+current_root="$config_root/current"
+
+die() {
+  notify-send "Obsidian Theme" "$1" 2>/dev/null || true
+  printf '%s\n' "$1" >&2
+  exit 1
+}
+
+theme_dirs() {
+  find "$themes_root" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort
+}
+
+current_theme() {
+  cat "$state_root/current-theme" 2>/dev/null || printf 'obsidian-ember\n'
+}
+
+load_palette() {
+  local slug="$1"
+  [[ "$slug" =~ ^[a-z0-9-]+$ ]] || die "Invalid theme name"
+  [[ -f "$themes_root/$slug/palette" ]] || die "Theme '$slug' does not exist"
+  # Palettes are installed with this desktop and contain color assignments only.
+  source "$themes_root/$slug/palette"
+}
+
+render() {
+  local template="$1" destination="$2" temporary
+  local -a keys=(BG PANEL HOVER BORDER TEXT MUTED ACCENT ACCENT2 DANGER CONTRAST C0 C1 C2 C3 C4 C5 C6 C7 C8 C9 C10 C11 C12 C13 C14 C15)
+  local -a replacements=()
+  local key
+
+  for key in "${keys[@]}"; do
+    replacements+=("-e" "s|{{$key}}|${!key}|g")
+  done
+
+  mkdir -p "$(dirname -- "$destination")"
+  temporary="$(mktemp "${destination}.XXXXXX")"
+  sed "${replacements[@]}" "$templates_root/$template" > "$temporary"
+  chmod 0644 "$temporary"
+  mv -f "$temporary" "$destination"
+}
+
+background_files() {
+  local slug="$1"
+  find "$themes_root/$slug/wallpapers" "$config_root/backgrounds/$slug" \
+    -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \) \
+    -print 2>/dev/null | sort
+}
+
+apply_background() {
+  local wallpaper="$1"
+  [[ -f "$wallpaper" ]] || die "Wallpaper not found"
+  mkdir -p "$state_root"
+  printf '%s\n' "$wallpaper" > "$state_root/current-wallpaper"
+  pkill -x swaybg 2>/dev/null || true
+  hyprctl dispatch exec "swaybg -i $wallpaper -m fill" >/dev/null 2>&1 || true
+}
+
+set_theme() {
+  local slug="$1" wallpaper
+  load_palette "$slug"
+  mkdir -p "$current_root" "$state_root" "$config_root/backgrounds/$slug"
+
+  render waybar.css.tpl "$current_root/waybar.css"
+  render rofi.rasi.tpl "$current_root/rofi.rasi"
+  render kitty.conf.tpl "$current_root/kitty.conf"
+  render hyprland.conf.tpl "$current_root/hyprland.conf"
+  render mako.conf.tpl "$HOME/.config/mako/config"
+  render btop.theme.tpl "$HOME/.config/btop/themes/obsidian-current.theme"
+  render starship.toml.tpl "$HOME/.config/starship.toml"
+
+  printf '%s\n' "$slug" > "$state_root/current-theme"
+  wallpaper="$(cat "$state_root/wallpaper-$slug" 2>/dev/null || true)"
+  if [[ ! -f "$wallpaper" ]]; then
+    wallpaper="$(background_files "$slug" | head -n 1)"
+  fi
+  [[ -n "$wallpaper" ]] && apply_background "$wallpaper"
+
+  hyprctl reload >/dev/null 2>&1 || true
+  pkill -SIGUSR2 waybar 2>/dev/null || true
+  if ! pgrep -x waybar >/dev/null; then
+    hyprctl dispatch exec waybar >/dev/null 2>&1 || true
+  fi
+  makoctl reload 2>/dev/null || true
+  notify-send "Theme changed" "$THEME_NAME" 2>/dev/null || true
+}
+
+choose_theme() {
+  local selected
+  selected="$(theme_dirs | rofi -dmenu -i -p 'Theme' -mesg "Current: $(current_theme)")"
+  [[ -n "$selected" ]] && set_theme "$selected"
+}
+
+choose_background() {
+  local slug selected path
+  slug="$(current_theme)"
+  mapfile -t paths < <(background_files "$slug")
+  ((${#paths[@]})) || die "No wallpapers are installed for $slug"
+  selected="$(printf '%s\n' "${paths[@]##*/}" | rofi -dmenu -i -p 'Wallpaper' -format i)"
+  [[ "$selected" =~ ^[0-9]+$ ]] || exit 0
+  path="${paths[$selected]}"
+  printf '%s\n' "$path" > "$state_root/wallpaper-$slug"
+  apply_background "$path"
+}
+
+next_background() {
+  local slug current next_index=0 index
+  slug="$(current_theme)"
+  current="$(cat "$state_root/current-wallpaper" 2>/dev/null || true)"
+  mapfile -t paths < <(background_files "$slug")
+  ((${#paths[@]})) || die "No wallpapers are installed for $slug"
+  for index in "${!paths[@]}"; do
+    if [[ "${paths[$index]}" == "$current" ]]; then
+      next_index=$(( (index + 1) % ${#paths[@]} ))
+      break
+    fi
+  done
+  printf '%s\n' "${paths[$next_index]}" > "$state_root/wallpaper-$slug"
+  apply_background "${paths[$next_index]}"
+}
+
+case "${1:-switch}" in
+  set) [[ $# -eq 2 ]] || die "Usage: obsidian-theme set <name>"; set_theme "$2" ;;
+  restore) set_theme "$(current_theme)" ;;
+  switch) choose_theme ;;
+  list) theme_dirs ;;
+  current) current_theme ;;
+  wallpaper) choose_background ;;
+  next-background) next_background ;;
+  *) die "Usage: obsidian-theme {set|restore|switch|list|current|wallpaper|next-background}" ;;
+esac

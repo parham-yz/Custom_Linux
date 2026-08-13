@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+backlight_device="${OBSIDIAN_BACKLIGHT_DEVICE:-apple-panel-bl}"
+
+volume_value() {
+  wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{printf "%d", $2 * 100}'
+}
+
+brightness_value() {
+  brightnessctl -d "$backlight_device" -m |
+    awk -F, '{gsub("%", "", $4); print $4}'
+}
+
+pause_auto_brightness() {
+  if command -v obsidian-auto-brightness >/dev/null; then
+    obsidian-auto-brightness pause 120
+  fi
+}
+
+case "${1:-}" in
+  volume-up)
+    wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ "${2:-5}%+"
+    value="$(volume_value)"
+    notify-send -h string:x-canonical-private-synchronous:obsidian-volume -h "int:value:$value" 'Volume' "$value%"
+    ;;
+  volume-down)
+    wpctl set-volume @DEFAULT_AUDIO_SINK@ "${2:-5}%-"
+    value="$(volume_value)"
+    notify-send -h string:x-canonical-private-synchronous:obsidian-volume -h "int:value:$value" 'Volume' "$value%"
+    ;;
+  volume-mute)
+    wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+    status="$(wpctl get-volume @DEFAULT_AUDIO_SINK@)"
+    notify-send -h string:x-canonical-private-synchronous:obsidian-volume 'Volume' "$status"
+    ;;
+  brightness-up)
+    pause_auto_brightness
+    brightnessctl -d "$backlight_device" set "${2:-5}%+" >/dev/null
+    value="$(brightness_value)"
+    notify-send -h string:x-canonical-private-synchronous:obsidian-brightness -h "int:value:$value" 'Brightness' "$value%"
+    ;;
+  brightness-down)
+    pause_auto_brightness
+    brightnessctl -d "$backlight_device" set "${2:-5}%-" >/dev/null
+    value="$(brightness_value)"
+    notify-send -h string:x-canonical-private-synchronous:obsidian-brightness -h "int:value:$value" 'Brightness' "$value%"
+    ;;
+  brightness-set)
+    pause_auto_brightness
+    brightnessctl -d "$backlight_device" set "${2:?brightness required}" >/dev/null
+    value="$(brightness_value)"
+    notify-send -h string:x-canonical-private-synchronous:obsidian-brightness -h "int:value:$value" 'Brightness' "$value%"
+    ;;
+  *) printf 'Usage: obsidian-osd {volume-up|volume-down|volume-mute|brightness-up|brightness-down|brightness-set} [amount]\n' >&2; exit 2 ;;
+esac

@@ -1,0 +1,75 @@
+@theme "/dev/null"
+@import "../obsidian-ember/current/rofi.rasi"
+
+* {
+  background-color: transparent;
+  text-color: @fg;
+  margin: 0;
+  padding: 0;
+  spacing: 0;
+}
+
+window {
+  width: 410px;
+  location: northeast;
+  anchor: northeast;
+  x-offset: -10px;
+  y-offset: 57px;
+  background-color: @bg;
+  border: 1px;
+  border-color: @border;
+  border-radius: 16px;
+}
+
+mainbox {
+  padding: 14px;
+  spacing: 10px;
+}
+
+inputbar {
+  children: [prompt, entry];
+  background-color: @panel;
+  border-radius: 11px;
+  padding: 12px 13px;
+}
+
+prompt {
+  text-color: @accent;
+  padding: 0 10px 0 0;
+}
+
+entry {
+  placeholder: "Search networks…";
+  placeholder-color: @muted;
+}
+
+message {
+  background-color: transparent;
+}
+
+textbox {
+  text-color: @muted;
+  padding: 1px 4px 3px 4px;
+}
+
+listview {
+  lines: 9;
+  columns: 1;
+  fixed-height: false;
+  scrollbar: false;
+  spacing: 4px;
+}
+
+element {
+  padding: 11px 12px;
+  border-radius: 10px;
+}
+
+element selected {
+  background-color: @selected;
+  text-color: @accent;
+}
+
+element-text {
+  vertical-align: 0.5;
+}

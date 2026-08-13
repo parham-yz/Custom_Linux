@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/obsidian-ember/recording"
+output_dir="${XDG_VIDEOS_DIR:-$HOME/Videos}/Recordings"
+pid_file="$state_dir/pid"
+path_file="$state_dir/path"
+mkdir -p "$state_dir" "$output_dir"
+
+stop_recording() {
+  if [[ -f "$pid_file" ]] && kill -0 "$(<"$pid_file")" 2>/dev/null; then
+    pid="$(<"$pid_file")"
+    path="$(<"$path_file")"
+    kill -INT "$pid"
+    for attempt in {1..20}; do
+      kill -0 "$pid" 2>/dev/null || break
+      sleep 0.1
+    done
+    rm -f "$pid_file" "$path_file"
+    notify-send 'Recording saved' "$path"
+    return 0
+  fi
+  return 1
+}
+
+start_recording() {
+  local scope="$1" audio="$2" geometry path
+  # Fedora's patent-safe FFmpeg build provides OpenH264 rather than libx264.
+  local -a args=(--no-dmabuf -c libopenh264)
+  if [[ "$scope" == region ]]; then
+    geometry="$(slurp -b '#0d0c0ccc' -c '#d6a15fff' -B '#00000066' -w 2)" || exit 0
+    args+=(-g "$geometry")
+  fi
+  [[ "$audio" == audio ]] && args+=(--audio --audio-backend=pipewire)
+  path="$output_dir/$(date +%Y-%m-%d_%H-%M-%S).mp4"
+  args+=(-f "$path")
+  nohup wf-recorder "${args[@]}" > "$state_dir/wf-recorder.log" 2>&1 &
+  printf '%s\n' "$!" > "$pid_file"
+  printf '%s\n' "$path" > "$path_file"
+  notify-send 'Recording started' "$scope • $audio • Alt+Print to stop"
+}
+
+recording_menu() {
+  local choice
+  choice="$(printf '%s\n' 'Region + audio' 'Region, silent' 'Full screen + audio' 'Full screen, silent' | rofi -dmenu -i -p 'Screen recording')"
+  case "$choice" in
+    'Region + audio') start_recording region audio ;;
+    'Region, silent') start_recording region silent ;;
+    'Full screen + audio') start_recording screen audio ;;
+    'Full screen, silent') start_recording screen silent ;;
+  esac
+}
+
+case "${1:-toggle}" in
+  menu) stop_recording || recording_menu ;;
+  toggle) stop_recording || start_recording region audio ;;
+  stop) stop_recording ;;
+  start-region) start_recording region "${2:-audio}" ;;
+  start-screen) start_recording screen "${2:-audio}" ;;
+  *) printf 'Usage: obsidian-record {menu|toggle|stop|start-region|start-screen}\n' >&2; exit 2 ;;
+esac

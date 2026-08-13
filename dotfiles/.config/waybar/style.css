@@ -1,0 +1,116 @@
+@import url("../obsidian-ember/current/waybar.css");
+
+* {
+  border: 0;
+  border-radius: 0;
+  min-height: 0;
+  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+window#waybar { background: transparent; color: @text; }
+
+#custom-launcher,
+#workspaces,
+#window,
+#custom-weather,
+#clock,
+#custom-updates,
+#custom-activity,
+#pulseaudio,
+#network,
+#backlight,
+#battery,
+#tray {
+  background: @bg;
+  border: 1px solid @border;
+  border-radius: 6px;
+  padding: 0 11px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+#custom-launcher {
+  color: @contrast;
+  background: @accent;
+  border-color: @accent2;
+  font-weight: 800;
+  letter-spacing: 0;
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+#workspaces { padding: 0 5px; }
+#workspaces button {
+  color: @muted;
+  background: transparent;
+  border-radius: 8px;
+  padding: 0 7px;
+  transition: all 160ms ease;
+}
+#workspaces button.active { color: @accent2; background: @hover; }
+#workspaces button.urgent { color: @danger; }
+#workspaces button:hover { color: @text; background: @hover; }
+
+#window { color: @muted; }
+#window.empty { background: transparent; border-color: transparent; box-shadow: none; }
+window#waybar.empty #window {
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+#custom-notch {
+  min-width: 176px;
+  background: transparent;
+}
+#clock { color: @accent2; font-weight: 700; }
+#custom-weather { color: @accent2; }
+#custom-updates { color: @accent; }
+#custom-updates.current {
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+#custom-activity { color: @muted; padding: 0 12px; }
+#network { font-size: 14px; padding: 0 13px; }
+#network.wifi { color: @accent2; }
+#network:hover { background: @hover; border-color: @accent; }
+#pulseaudio.muted, #network.disconnected { color: @danger; }
+#battery.charging, #battery.plugged { color: @accent; }
+#battery.warning:not(.charging) { color: @accent2; }
+#battery.critical:not(.charging) { color: @danger; }
+
+tooltip {
+  background: @panel;
+  color: @text;
+  border: 1px solid @border;
+  border-radius: 10px;
+}
+tooltip label { padding: 6px; }
+
+/* Compact only the vertical dimension; preserve text/icon sizes and widths. */
+window#waybar,
+window#waybar > box,
+#custom-launcher,
+#workspaces,
+#window,
+#custom-weather,
+#clock,
+#custom-updates,
+#custom-activity,
+#pulseaudio,
+#network,
+#backlight,
+#battery,
+#tray,
+#workspaces button {
+  min-height: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}

@@ -1,0 +1,9 @@
+[Unit]
+Description=Obsidian Ember display idle and suspend policy
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/obsidian-idle-action daemon
+Restart=always
+RestartSec=3
+TimeoutStopSec=5
