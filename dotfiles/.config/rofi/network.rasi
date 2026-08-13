@@ -10,7 +10,7 @@
 }
 
 window {
-  width: 410px;
+  width: 500px;
   location: northeast;
   anchor: northeast;
   x-offset: -10px;
@@ -49,11 +49,12 @@ message {
 
 textbox {
   text-color: @muted;
-  padding: 1px 4px 3px 4px;
+  padding: 2px 4px 5px 4px;
+  markup: true;
 }
 
 listview {
-  lines: 9;
+  lines: 15;
   columns: 1;
   fixed-height: false;
   scrollbar: false;

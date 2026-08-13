@@ -45,6 +45,8 @@ manifests/
   *-services-enabled.txt        Enabled unit names
   wallpapers.sha256             Wallpaper integrity checksums
   system-summary.txt            Sanitized system summary
+screenshots/
+  wifi-menu-*.png               Wi-Fi dropdown reference screenshots
 scripts/
   restore-config.sh             Safe configuration restore helper
   iphone-usb-tether.sh          Connect iPhone internet over USB only
@@ -80,6 +82,19 @@ Flatpak applications can be reviewed with:
 cat manifests/flatpak-installed.tsv
 ```
 
+
+
+## Wi-Fi dropdown
+
+Click the persistent Wi-Fi icon in Waybar to open the custom network menu. The
+menu keeps the current network selected, sorts nearby networks by signal,
+supports search, refresh, disconnect, radio on/off, saved credentials, and a
+password prompt for new secured networks. Destructive actions are below the
+network list, and free-form menu input cannot accidentally trigger an action.
+
+| Wi-Fi enabled | Wi-Fi disabled |
+|---|---|
+| ![Wi-Fi network menu](screenshots/wifi-menu-enabled.png) | ![Wi-Fi disabled menu](screenshots/wifi-menu-disabled.png) |
 
 ## iPhone USB-only tethering
 

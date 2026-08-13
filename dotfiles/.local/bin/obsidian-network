@@ -1,105 +1,271 @@
 #!/usr/bin/env bash
 set -u
 
+export LC_ALL=C
+
 theme="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/network.rasi"
 notify_id="obsidian-network"
-
-# A second click on the Waybar icon closes this flyout (including its password
-# prompt) instead of spawning another copy.
-mapfile -t open_flyouts < <(pgrep -u "$UID" -f 'rofi .*network\.rasi' 2>/dev/null || true)
-if (( ${#open_flyouts[@]} )); then
-  kill "${open_flyouts[@]}" 2>/dev/null || true
-  exit 0
-fi
+runtime_dir="${XDG_RUNTIME_DIR:-/tmp}"
+rofi_pid_file="$runtime_dir/obsidian-network-rofi.pid"
+refresh=false
+[[ "${1:-}" == --refresh ]] && refresh=true
 
 notice() {
   notify-send -a 'Network' -h "string:x-canonical-private-synchronous:$notify_id" "$1" "${2:-}"
 }
 
-wifi_state="$(nmcli -t -f WIFI general 2>/dev/null || printf 'disabled')"
-if [[ "$wifi_state" != enabled ]]; then
-  choice="$(printf '%s\n' '󰖩  Turn Wi-Fi On' | rofi -dmenu -i -click-to-exit -p 'Wi-Fi' -mesg 'Wi-Fi is off' -theme "$theme")" || exit 0
-  if [[ -n "$choice" ]] && nmcli radio wifi on; then
-    notice 'Wi-Fi' 'Turned on'
-    sleep 1
-    exec "$0"
+escape_markup() {
+  local value="$1"
+  value=${value//&/&amp;}
+  value=${value//</&lt;}
+  value=${value//>/&gt;}
+  value=${value//\"/&quot;}
+  printf '%s' "$value"
+}
+
+# Clicking the Waybar icon a second time closes only the menu opened by this
+# script, rather than matching and killing arbitrary Rofi processes.
+if [[ -r "$rofi_pid_file" ]]; then
+  old_pid="$(<"$rofi_pid_file")"
+  if [[ "$old_pid" =~ ^[0-9]+$ ]] && [[ "$(ps -o comm= -p "$old_pid" 2>/dev/null)" == rofi ]]; then
+    old_command="$(tr '\0' ' ' <"/proc/$old_pid/cmdline" 2>/dev/null || true)"
+    if [[ "$old_command" == *"$theme"* ]]; then
+      kill "$old_pid" 2>/dev/null || true
+      exit 0
+    fi
+  fi
+  rm -f -- "$rofi_pid_file"
+fi
+
+rofi_menu() {
+  local output status pid
+  output="$(mktemp "$runtime_dir/obsidian-network-choice.XXXXXX" 2>/dev/null || mktemp /tmp/obsidian-network-choice.XXXXXX)" || return 1
+  rofi "$@" >"$output" &
+  pid=$!
+  printf '%s\n' "$pid" >"$rofi_pid_file"
+  wait "$pid"
+  status=$?
+  [[ "$(cat "$rofi_pid_file" 2>/dev/null)" == "$pid" ]] && rm -f -- "$rofi_pid_file"
+  cat "$output"
+  rm -f -- "$output"
+  return "$status"
+}
+
+if ! command -v nmcli >/dev/null || ! nmcli general status >/dev/null 2>&1; then
+  notice 'Network unavailable' 'NetworkManager is not running'
+  exit 1
+fi
+
+wifi_interface="$(nmcli -t -f DEVICE,TYPE device status 2>/dev/null | awk -F: '$2 == "wifi" {print $1; exit}')"
+if [[ -z "$wifi_interface" ]]; then
+  notice 'Wi-Fi unavailable' 'No Wi-Fi adapter was found'
+  exit 1
+fi
+
+networking_state="$(nmcli networking 2>/dev/null || printf 'disabled')"
+if [[ "$networking_state" != enabled ]]; then
+  choice="$(printf '%s\n%s\n' '󰤨  Turn Networking On' '󰒓  Network Settings…' |
+    rofi_menu -dmenu -i -no-custom -click-to-exit -p 'Network' \
+      -mesg 'All networking is disabled' -theme-str 'entry { placeholder: "Choose an action…"; }' \
+      -theme "$theme")" || exit 0
+  case "$choice" in
+    '󰤨  Turn Networking On')
+      if nmcli networking on; then notice 'Network' 'Networking turned on'; sleep 1; exec "$0"; fi
+      notice 'Network unavailable' 'Could not enable NetworkManager networking'
+      exit 1
+      ;;
+    '󰒓  Network Settings…')
+      if command -v nm-connection-editor >/dev/null; then exec nm-connection-editor; fi
+      notice 'Network Settings unavailable' 'nm-connection-editor is not installed'
+      ;;
+  esac
+  exit 0
+fi
+
+wifi_hardware_state="$(nmcli -t -f WIFI-HW general 2>/dev/null || printf 'disabled')"
+if [[ "$wifi_hardware_state" != enabled ]]; then
+  choice="$(printf '%s\n' '󰒓  Network Settings…' |
+    rofi_menu -dmenu -i -no-custom -click-to-exit -p 'Wi-Fi' \
+      -mesg 'Wi-Fi is blocked by hardware or airplane mode' \
+      -theme-str 'entry { placeholder: "Hardware Wi-Fi is off"; }' -theme "$theme")" || exit 0
+  if [[ "$choice" == '󰒓  Network Settings…' ]]; then
+    if command -v nm-connection-editor >/dev/null; then exec nm-connection-editor; fi
+    notice 'Network Settings unavailable' 'nm-connection-editor is not installed'
   fi
   exit 0
 fi
 
-# Use NetworkManager's cached scan for an instant-open menu. NetworkManager
-# refreshes this cache itself; forcing a scan here was the source of the delay.
-scan_file="$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/obsidian-network-scan.XXXXXX")"
-nmcli -t -f ACTIVE,SSID,SIGNAL,SECURITY device wifi list --rescan no >"$scan_file" 2>/dev/null || true
+wifi_state="$(nmcli -t -f WIFI general 2>/dev/null || printf 'disabled')"
+if [[ "$wifi_state" != enabled ]]; then
+  choice="$(printf '%s\n%s\n' '󰖩  Turn Wi-Fi On' '󰒓  Network Settings…' |
+    rofi_menu -dmenu -i -no-custom -click-to-exit -p 'Wi-Fi' \
+      -mesg 'Wi-Fi is off' -theme-str 'entry { placeholder: "Choose an action…"; }' \
+      -theme "$theme")" || exit 0
+  case "$choice" in
+    '󰖩  Turn Wi-Fi On')
+      if nmcli radio wifi on; then
+        notice 'Wi-Fi' 'Turned on'
+        sleep 1
+        exec "$0" --refresh
+      else
+        notice 'Could not turn on Wi-Fi' 'Check airplane mode and the Wi-Fi adapter'
+        exit 1
+      fi
+      ;;
+    '󰒓  Network Settings…')
+      if command -v nm-connection-editor >/dev/null; then exec nm-connection-editor; fi
+      notice 'Network Settings unavailable' 'nm-connection-editor is not installed'
+      ;;
+  esac
+  exit 0
+fi
 
-active_ssid="$(awk -F ':' '
-  $1 == "yes" {
-    print substr($0, length($1) + 2, length($0) - length($1) - length($(NF - 1)) - length($NF) - 3)
-    exit
-  }
-' "$scan_file")"
-mapfile -t rows < <(
-  awk -F ':' '
-      {
-        active = $1
-        security_value = $NF
-        signal = $(NF - 1)
-        ssid = substr($0, length(active) + 2, length($0) - length(active) - length(signal) - length(security_value) - 3)
-        if (ssid != "" && (!seen[ssid] || signal > strength[ssid])) {
-          seen[ssid] = 1; strength[ssid] = signal; secured[ssid] = security_value
-        }
-      }
-      END { for (ssid in seen) print strength[ssid] "|" secured[ssid] "|" ssid }
-    ' "$scan_file" | sort -t '|' -k1,1nr
-)
-rm -f -- "$scan_file"
+if [[ "$refresh" == true ]]; then
+  notice 'Wi-Fi' 'Refreshing nearby networks…'
+  nmcli --wait 12 device wifi rescan ifname "$wifi_interface" >/dev/null 2>&1 || true
+fi
 
-labels=('󰖩  Turn Wi-Fi Off')
-ssids=('')
-securities=('')
+scan_file="$(mktemp "$runtime_dir/obsidian-network-scan.XXXXXX" 2>/dev/null || mktemp /tmp/obsidian-network-scan.XXXXXX)" || {
+  notice 'Wi-Fi' 'Could not create a temporary scan file'
+  exit 1
+}
+trap 'rm -f -- "$scan_file"' EXIT
+if ! nmcli -t -e no -f IN-USE,SSID,SIGNAL,SECURITY device wifi list ifname "$wifi_interface" --rescan no >"$scan_file" 2>/dev/null; then
+  notice 'Wi-Fi scan failed' 'Click the Wi-Fi icon to try again'
+  exit 1
+fi
+
+active_ssid=""
+while IFS= read -r line; do
+  [[ "${line%%:*}" == "*" ]] || continue
+  active_rest="${line#*:}"
+  active_rest="${active_rest%:*}"
+  active_ssid="${active_rest%:*}"
+  break
+done <"$scan_file"
+
+# Keep the strongest access point for each SSID. Parsing strips only the fixed
+# first and final two fields, so colons and pipes inside normal SSIDs remain
+# intact. SSIDs containing literal newlines cannot be represented by nmcli's
+# line-oriented output and are ignored safely.
+declare -A strongest=()
+declare -A security_for=()
+while IFS= read -r line; do
+  rest="${line#*:}"
+  security="${rest##*:}"
+  rest="${rest%:*}"
+  signal="${rest##*:}"
+  ssid="${rest%:*}"
+  [[ -n "$ssid" && "$signal" =~ ^[0-9]+$ ]] || continue
+  if [[ -z "${strongest[$ssid]+set}" ]] || (( signal > strongest[$ssid] )); then
+    strongest["$ssid"]="$signal"
+    security_for["$ssid"]="$security"
+  fi
+done <"$scan_file"
+
+# Sort the small in-memory network list by signal without serializing SSIDs
+# through another delimiter (SSID text may legally contain ':' or '|').
+ssids_sorted=()
+for ssid in "${!strongest[@]}"; do ssids_sorted+=("$ssid"); done
+for ((i = 0; i < ${#ssids_sorted[@]}; i++)); do
+  for ((j = i + 1; j < ${#ssids_sorted[@]}; j++)); do
+    if (( strongest[${ssids_sorted[j]}] > strongest[${ssids_sorted[i]}] )); then
+      swap="${ssids_sorted[i]}"
+      ssids_sorted[i]="${ssids_sorted[j]}"
+      ssids_sorted[j]="$swap"
+    fi
+  done
+done
+
+labels=()
+ssids=()
+securities=()
 selected_index=0
 
-for row in "${rows[@]}"; do
-  IFS='|' read -r signal security ssid <<< "$row"
-  (( signal >= 75 )) && bars='󰤨' || { (( signal >= 50 )) && bars='󰤥' || { (( signal >= 25 )) && bars='󰤢' || bars='󰤟'; }; }
+for ssid in "${ssids_sorted[@]}"; do
+  signal="${strongest[$ssid]}"
+  security="${security_for[$ssid]}"
+  if (( signal >= 75 )); then bars='󰤨'
+  elif (( signal >= 50 )); then bars='󰤥'
+  elif (( signal >= 25 )); then bars='󰤢'
+  else bars='󰤟'
+  fi
   [[ -n "$security" && "$security" != '--' ]] && lock='' || lock=' '
   [[ "$ssid" == "$active_ssid" ]] && marker='✓' || marker=' '
   [[ "$ssid" == "$active_ssid" ]] && selected_index="${#labels[@]}"
-  display_ssid="${ssid:0:18}"
-  printf -v label '%s  %s  %-18s  %s  %3s%%' "$marker" "$bars" "$display_ssid" "$lock" "$signal"
+  display_ssid="$ssid"
+  ((${#display_ssid} > 27)) && display_ssid="${display_ssid:0:26}…"
+  printf -v label '%s  %s  %-27s  %s  %3s%%' "$marker" "$bars" "$display_ssid" "$lock" "$signal"
   labels+=("$label")
   ssids+=("$ssid")
   securities+=("$security")
 done
 
+network_count=${#labels[@]}
+refresh_index=${#labels[@]}
+labels+=('󰑐  Refresh Networks')
+if [[ -n "$active_ssid" ]]; then
+  disconnect_index=${#labels[@]}
+  labels+=('󰖪  Disconnect Current Network')
+else
+  disconnect_index=-1
+fi
+off_index=${#labels[@]}
+labels+=('󰖩  Turn Wi-Fi Off')
+settings_index=${#labels[@]}
 labels+=('󰒓  Network Settings…')
-ssids+=('')
-securities+=('')
 
-message='Select a network to connect'
-[[ -n "$active_ssid" ]] && message="Connected to $active_ssid"
-index="$(printf '%s\n' "${labels[@]}" | rofi -dmenu -i -click-to-exit -p 'Wi-Fi' -mesg "$message" -format i -selected-row "$selected_index" -theme "$theme")" || exit 0
-
-if [[ "$index" == 0 ]]; then
-  if nmcli radio wifi off; then notice 'Wi-Fi' 'Turned off'; fi
-  exit 0
+if (( network_count == 0 )); then
+  message='No nearby networks found • choose Refresh Networks'
+  selected_index=$refresh_index
+elif [[ -n "$active_ssid" ]]; then
+  message="Connected to $(escape_markup "$active_ssid")"
+else
+  message='Not connected • select a network'
+  selected_index=0
 fi
 
-last_index=$(( ${#labels[@]} - 1 ))
-if (( index == last_index )); then
-  exec nm-connection-editor
+index="$(printf '%s\n' "${labels[@]}" | rofi_menu -dmenu -i -no-custom -click-to-exit \
+  -p 'Wi-Fi' -mesg "$message" -format i -selected-row "$selected_index" -theme "$theme")" || exit 0
+
+[[ "$index" =~ ^[0-9]+$ ]] && (( index < ${#labels[@]} )) || exit 0
+
+if (( index == refresh_index )); then
+  exec "$0" --refresh
+elif (( index == off_index )); then
+  if nmcli radio wifi off; then notice 'Wi-Fi' 'Turned off'; else notice 'Wi-Fi' 'Could not turn Wi-Fi off'; fi
+  exit 0
+elif (( index == settings_index )); then
+  if command -v nm-connection-editor >/dev/null; then exec nm-connection-editor; fi
+  notice 'Network Settings unavailable' 'nm-connection-editor is not installed'
+  exit 1
+elif (( disconnect_index >= 0 && index == disconnect_index )); then
+  if nmcli device disconnect "$wifi_interface" >/dev/null; then
+    notice 'Wi-Fi disconnected' "$active_ssid"
+  else
+    notice 'Could not disconnect' "$active_ssid"
+  fi
+  exit 0
+elif (( index >= network_count )); then
+  exit 0
 fi
 
 ssid="${ssids[index]}"
 security="${securities[index]}"
-[[ "$ssid" == "$active_ssid" ]] && exit 0
+if [[ "$ssid" == "$active_ssid" ]]; then
+  notice 'Already connected' "$ssid"
+  exit 0
+fi
+
+if [[ "$security" == *802.1X* || "$security" == *Enterprise* ]]; then
+  notice 'Enterprise Wi-Fi' 'Identity or certificate settings are required'
+  command -v nm-connection-editor >/dev/null && exec nm-connection-editor
+  exit 1
+fi
 
 notice 'Wi-Fi' "Connecting to $ssid…"
-
-# NetworkManager reuses saved credentials automatically. Only ask for a
-# password when the first connection attempt says secrets are required.
-error_file="$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/obsidian-network.XXXXXX")"
-if nmcli --wait 20 device wifi connect "$ssid" 2>"$error_file"; then
+error_file="$(mktemp "$runtime_dir/obsidian-network-error.XXXXXX" 2>/dev/null || mktemp /tmp/obsidian-network-error.XXXXXX)" || exit 1
+if nmcli --wait 20 device wifi connect "$ssid" ifname "$wifi_interface" 2>"$error_file"; then
   rm -f -- "$error_file"
   notice 'Wi-Fi connected' "$ssid"
   exit 0
@@ -107,11 +273,12 @@ fi
 
 error="$(<"$error_file")"
 rm -f -- "$error_file"
-
 if [[ -n "$security" && "$security" != '--' ]] && [[ "$error" == *'Secrets were required'* || "$error" == *'password'* || "$error" == *'802-11-wireless-security'* ]]; then
-  password="$(printf '' | rofi -dmenu -password -click-to-exit -p 'Password' -mesg "$ssid" -theme "$theme")" || exit 0
+  password="$(printf '' | rofi_menu -dmenu -password -click-to-exit -p 'Password' \
+    -mesg "Enter the password for $(escape_markup "$ssid")" \
+    -theme-str 'entry { placeholder: "Password…"; }' -theme "$theme")" || exit 0
   [[ -z "$password" ]] && exit 0
-  if nmcli --wait 30 device wifi connect "$ssid" password "$password"; then
+  if nmcli --wait 30 device wifi connect "$ssid" password "$password" ifname "$wifi_interface"; then
     notice 'Wi-Fi connected' "$ssid"
   else
     notice 'Could not connect' "Check the password for $ssid"
