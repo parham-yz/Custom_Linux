@@ -47,6 +47,7 @@ manifests/
   system-summary.txt            Sanitized system summary
 scripts/
   restore-config.sh             Safe configuration restore helper
+  iphone-usb-tether.sh          Connect iPhone internet over USB only
   verify-snapshot.sh            Integrity and secret-pattern checks
 ```
 
@@ -77,6 +78,25 @@ Flatpak applications can be reviewed with:
 
 ```bash
 cat manifests/flatpak-installed.tsv
+```
+
+
+## iPhone USB-only tethering
+
+Connect and unlock the iPhone, enable **Settings → Personal Hotspot → Allow
+Others to Join**, accept the Trust prompt when requested, then run:
+
+```bash
+./scripts/iphone-usb-tether.sh
+```
+
+On Fedora, the script installs `libimobiledevice-utils` if needed, pairs the
+iPhone, connects its `ipheth` Ethernet interface through NetworkManager, tests
+connectivity, and disables Wi-Fi so traffic uses only the USB cable. To leave
+Wi-Fi enabled, pass `--keep-wifi`. To turn Wi-Fi back on later:
+
+```bash
+./scripts/iphone-usb-tether.sh --wifi-on
 ```
 
 ## Privacy and scope

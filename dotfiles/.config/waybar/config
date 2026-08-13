@@ -68,8 +68,10 @@
     "format-wifi": "󰤨",
     "format-ethernet": "󰈀",
     "format-disconnected": "󰤭",
+    "format-disabled": "󰤭",
     "tooltip-format-wifi": "{essid}\n{ipaddr}\n{bandwidthDownBytes} down  {bandwidthUpBytes} up",
     "tooltip-format-disconnected": "Wi-Fi disconnected • click to connect",
+    "tooltip-format-disabled": "Wi-Fi is off • click to turn it on",
     "on-click": "obsidian-network",
     "on-click-right": "nm-connection-editor"
   },

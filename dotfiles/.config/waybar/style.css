@@ -79,7 +79,7 @@ window#waybar.empty #window {
 #network { font-size: 14px; padding: 0 13px; }
 #network.wifi { color: @accent2; }
 #network:hover { background: @hover; border-color: @accent; }
-#pulseaudio.muted, #network.disconnected { color: @danger; }
+#pulseaudio.muted, #network.disconnected, #network.disabled { color: @danger; }
 #battery.charging, #battery.plugged { color: @accent; }
 #battery.warning:not(.charging) { color: @accent2; }
 #battery.critical:not(.charging) { color: @danger; }
