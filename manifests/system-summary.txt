@@ -9,6 +9,5 @@ Monitor: eDP-1, 2560x1664 at 60 Hz, scale 1.6, transform 0
 Waybar requested/verified rendered height: 30 px
 Waybar top/left/right margins: 5/10/10 px
 Hyprland inner/outer gaps: 4/4 px
-Keyboard shortcuts: macOS-style Command translation for graphical apps and Kitty
 Theme: obsidian-ember
 Current wallpaper: themes/obsidian-ember/wallpapers/ghibli-laputa-city.jpg
