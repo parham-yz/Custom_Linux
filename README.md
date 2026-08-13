@@ -11,16 +11,16 @@ Snapshot created: `2026-08-13T09:36:52+02:00`
 | Desktop compositor | Hyprland 0.56.0 |
 | Bar | Waybar 0.15.0 |
 | Waybar rendered height | **30 px** (about 80% of the original 38 px) |
-| Waybar top/side margins | 8 px / 10 px |
+| Waybar top/side margins | 5 px / 10 px |
 | Text size | 12 px |
 | Network icon/text size | 14 px |
 | Tray icon size | 16 px |
 | Hyprland inner gap | **4 px** |
-| Hyprland outer gap | **8 px** |
+| Hyprland outer gap | **4 px** |
 | Display | 2560×1664 @ 60 Hz, scale 1.6 |
 | Active theme | `obsidian-ember` |
 
-The bar retains its readable text/icon sizes and horizontal widths. Only its vertical geometry was compacted. The window gaps were scaled to 80% of their previous values (5→4 px and 10→8 px).
+The bar retains its readable text/icon sizes and horizontal widths. Only its vertical geometry was compacted. The top bar margin is 5 px, while the outer and inner window gaps are both 4 px.
 
 ## Repository contents
 
