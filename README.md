@@ -22,6 +22,28 @@ Snapshot created: `2026-08-13T09:36:52+02:00`
 
 The bar retains its readable text/icon sizes and horizontal widths. Only its vertical geometry was compacted. The top bar margin is 5 px, while the outer and inner window gaps are both 4 px.
 
+## macOS-style keyboard shortcuts
+
+The physical **Command** key behaves like macOS inside graphical applications:
+Command+A/B/C/D/E/F/I/J/K/L/N/O/P/Q/R/S/T/U/V/W/X/Y, Command+Z and
+Command+Shift+Z, Command+comma, Command+plus/minus, arrow navigation,
+and Command+1 through Command+0 are translated to the Linux application's
+corresponding Ctrl shortcut. Command+Tab cycles windows and Command+Space opens
+the application launcher.
+
+Kitty uses terminal-safe equivalents: Command+C/V copy and paste without
+sending SIGINT, Command+T/W/N/Q manage tabs and windows, Command+F opens
+scrollback, Command+K/L clears the terminal, Command+R/P retain Readline
+history behavior, Command+plus/minus/0 changes font size, and Command+1–9
+selects terminal tabs. Unsafe translations such as Command+S or Command+Z are
+intentionally ignored in terminals so they cannot freeze output or suspend a
+foreground process.
+
+Window-manager operations that previously occupied bare Command shortcuts now
+use **Command+Option** (for example Command+Option+F for fullscreen,
+Command+Option+T for floating, Command+Option+arrow for focus, and
+Command+Option+1–0 for workspaces).
+
 ## Repository contents
 
 ```text
