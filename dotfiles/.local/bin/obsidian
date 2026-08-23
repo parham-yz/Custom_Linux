@@ -17,6 +17,7 @@ case "$command_name" in
   toggle) exec obsidian-toggle "${1:-bar}" ;;
   display) exec obsidian-display "${1:-next}" ;;
   power) exec obsidian-power "${1:-status}" ;;
+  bluetooth|bt) exec obsidian-bluetooth "$@" ;;
   agent|ai) exec obsidian-agent "$@" ;;
   keys|keybindings) exec obsidian-keybindings ;;
   updates) exec obsidian-updates "${1:-check}" ;;
@@ -42,6 +43,7 @@ Obsidian Ember desktop command
   obsidian toggle <feature>         autobrightness, bar, gaps, idle, nightlight, notifications
   obsidian display [next|previous]  Change Retina scale
   obsidian power [status|toggle]    Inspect or change energy mode
+  obsidian bluetooth [--toggle|--scan] Manage Bluetooth devices
   obsidian agent [launch|pick|usage] Native AI coding-agent integration
   obsidian keys                     Search shortcuts
   obsidian updates [status|run]     Check or install updates

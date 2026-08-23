@@ -1,0 +1,414 @@
+#!/usr/bin/env bash
+set -u
+
+export LC_ALL=C
+
+theme="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/network.rasi"
+notify_id="obsidian-bluetooth"
+runtime_base="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}"
+runtime_dir="$runtime_base/obsidian-bluetooth-$UID"
+(umask 077; mkdir -p "$runtime_dir") || exit 1
+chmod 700 "$runtime_dir"
+rofi_pid_file="$runtime_dir/rofi.pid"
+mode="${1:-menu}"
+
+notice() {
+  notify-send -a 'Bluetooth' -h "string:x-canonical-private-synchronous:$notify_id" \
+    "$(escape_markup "$1")" "$(escape_markup "${2:-}")"
+}
+
+sanitize() {
+  PYTHONUTF8=1 python3 -c 'import sys
+value = sys.stdin.read().replace("\r", " ").replace("\n", " ").replace("\t", " ")
+value = "".join(ch for ch in value if ord(ch) >= 32 and ord(ch) != 127)
+print(value[:160], end="")'
+}
+
+escape_markup() {
+  local value="$1"
+  value=${value//&/&amp;}
+  value=${value//</&lt;}
+  value=${value//>/&gt;}
+  value=${value//\"/&quot;}
+  printf '%s' "$value"
+}
+
+valid_mac() {
+  [[ "$1" =~ ^([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}$ ]]
+}
+
+bt_quick() {
+  timeout --foreground 8 bluetoothctl --timeout 7 "$@"
+}
+
+# Clicking the Waybar icon twice closes only this script's own Rofi window.
+close_existing_menu() {
+  local old_pid old_command
+  [[ -r "$rofi_pid_file" ]] || return 1
+  old_pid="$(<"$rofi_pid_file")"
+  if [[ "$old_pid" =~ ^[0-9]+$ ]] && [[ "$(ps -o comm= -p "$old_pid" 2>/dev/null)" == rofi ]]; then
+    old_command="$(tr '\0' ' ' <"/proc/$old_pid/cmdline" 2>/dev/null || true)"
+    if [[ "$old_command" == *"$theme"* ]]; then
+      kill "$old_pid" 2>/dev/null || true
+      return 0
+    fi
+  fi
+  rm -f -- "$rofi_pid_file"
+  return 1
+}
+
+rofi_menu() {
+  local output status pid
+  output="$(mktemp "$runtime_dir/obsidian-bluetooth-choice.XXXXXX" 2>/dev/null || mktemp /tmp/obsidian-bluetooth-choice.XXXXXX)" || return 1
+  chmod 600 "$output"
+  rofi "$@" >"$output" &
+  pid=$!
+  printf '%s\n' "$pid" >"$rofi_pid_file"
+  wait "$pid"
+  status=$?
+  [[ "$(cat "$rofi_pid_file" 2>/dev/null)" == "$pid" ]] && rm -f -- "$rofi_pid_file"
+  cat "$output"
+  rm -f -- "$output"
+  return "$status"
+}
+
+controller_info() {
+  bt_quick show 2>/dev/null
+}
+
+controller_powered() {
+  controller_info | awk '$1 == "Powered:" {print $2; exit}'
+}
+
+ensure_available() {
+  local controller_count
+  for dependency in bluetoothctl timeout python3; do
+    if ! command -v "$dependency" >/dev/null 2>&1; then
+      notice 'Bluetooth unavailable' "Required command not found: $dependency"
+      return 1
+    fi
+  done
+  if ! systemctl is-active --quiet bluetooth.service 2>/dev/null; then
+    notice 'Bluetooth unavailable' 'The system Bluetooth service is not running'
+    return 1
+  fi
+  controller_count="$(bt_quick list 2>/dev/null | grep -c '^Controller ' || true)"
+  if (( controller_count == 0 )); then
+    notice 'Bluetooth unavailable' 'No Bluetooth controller was found'
+    return 1
+  elif (( controller_count > 1 )); then
+    notice 'Multiple Bluetooth controllers' 'Choose the active adapter in KDE Bluetooth settings first'
+    return 1
+  fi
+  if ! controller_info | grep -q '^Controller '; then
+    notice 'Bluetooth unavailable' 'The Bluetooth controller did not respond'
+    return 1
+  fi
+}
+
+power_on() {
+  if command -v rfkill >/dev/null 2>&1; then
+    rfkill unblock bluetooth >/dev/null 2>&1 || true
+  fi
+  if bt_quick power on >/dev/null 2>&1; then
+    notice 'Bluetooth' 'Turned on'
+    return 0
+  fi
+  notice 'Could not turn on Bluetooth' 'Check airplane mode and the Bluetooth adapter'
+  return 1
+}
+
+power_off() {
+  if bt_quick power off >/dev/null 2>&1; then
+    notice 'Bluetooth' 'Turned off'
+    return 0
+  fi
+  notice 'Could not turn off Bluetooth' 'The Bluetooth controller did not respond'
+  return 1
+}
+
+confirm_power_off() {
+  local connected_count choice
+  connected_count="$(bt_quick devices Connected 2>/dev/null | grep -c '^Device ' || true)"
+  if (( connected_count == 0 )); then
+    return 0
+  fi
+  choice="$(printf '%s\n%s\n' 'Cancel' 'Turn Bluetooth Off' |
+    rofi_menu -dmenu -i -no-custom -click-to-exit -p 'Confirm' \
+      -mesg "$connected_count connected device(s) will be disconnected" -theme "$theme")" || return 1
+  [[ "$choice" == 'Turn Bluetooth Off' ]]
+}
+
+run_scan() {
+  local error_file error status=0
+  error_file="$(mktemp "$runtime_dir/obsidian-bluetooth-error.XXXXXX" 2>/dev/null || mktemp /tmp/obsidian-bluetooth-error.XXXXXX)" || return 1
+  chmod 600 "$error_file"
+  notice 'Bluetooth' 'Scanning for nearby devices…'
+  trap 'bt_quick scan off >/dev/null 2>&1 || true; exit 130' HUP INT TERM
+  timeout --foreground 12 bluetoothctl --timeout 10 scan on >/dev/null 2>"$error_file" || status=$?
+  bt_quick scan off >/dev/null 2>&1 || true
+  trap - HUP INT TERM
+  if (( status == 0 )); then
+    rm -f -- "$error_file"
+    notice 'Bluetooth' 'Nearby-device scan complete'
+    return 0
+  fi
+  error="$(sanitize <"$error_file")"
+  rm -f -- "$error_file"
+  notice 'Bluetooth scan failed' "${error:-The Bluetooth controller did not respond}"
+  return 1
+}
+
+field_from_info() {
+  local field="$1" info="$2"
+  awk -v key="$field" '$1 == key ":" {sub(/^[^:]*:[[:space:]]*/, ""); print; exit}' <<<"$info"
+}
+
+device_icon() {
+  case "$1" in
+    audio-headset|audio-headphones) printf '󰋋' ;;
+    audio-card|audio-speakers) printf '󰓃' ;;
+    input-keyboard) printf '󰌌' ;;
+    input-mouse) printf '󰍽' ;;
+    input-gaming) printf '󰊴' ;;
+    phone) printf '󰏲' ;;
+    computer) printf '󰍹' ;;
+    *) printf '󰂱' ;;
+  esac
+}
+
+audio_settings() {
+  if command -v pavucontrol >/dev/null 2>&1; then exec pavucontrol; fi
+  if command -v systemsettings >/dev/null 2>&1; then exec systemsettings kcm_pulseaudio; fi
+  notice 'Audio settings unavailable' 'Install pavucontrol to choose headset profiles'
+  return 1
+}
+
+interactive_pair() {
+  local mac="$1" name="$2"
+  if ! command -v kitty >/dev/null 2>&1; then
+    notice 'Interactive pairing unavailable' 'Open bluetoothctl and run the pair command manually'
+    return 1
+  fi
+  kitty --class org.obsidian.bluetooth --title "Bluetooth Pairing — $name" \
+    bash -lc 'printf "Pairing %s\nRespond to any PIN or passkey prompt below.\n\n" "$1"; timeout --foreground 125 bluetoothctl --agent KeyboardDisplay --timeout 120 pair "$1"; status=$?; if (( status == 0 )); then timeout --foreground 8 bluetoothctl --timeout 7 trust "$1"; timeout --foreground 35 bluetoothctl --timeout 30 connect "$1" || true; fi; printf "\nPress Enter to close…"; read -r; exit "$status"' _ "$mac" &
+}
+
+pair_device() {
+  local mac="$1" name="$2" error_file error choice info
+  info="$(bt_quick info "$mac" 2>/dev/null || true)"
+  if [[ "$(field_from_info Paired "$info")" == yes ]]; then
+    notice 'Bluetooth' "$name is already paired; connecting instead"
+    connect_device "$mac" "$name"
+    return
+  fi
+  error_file="$(mktemp "$runtime_dir/obsidian-bluetooth-error.XXXXXX" 2>/dev/null || mktemp /tmp/obsidian-bluetooth-error.XXXXXX)" || return 1
+  chmod 600 "$error_file"
+  notice 'Bluetooth' "Pairing with $name ($mac)…"
+  if timeout --foreground 50 bluetoothctl --agent NoInputNoOutput --timeout 45 pair "$mac" >"$error_file" 2>&1; then
+    bt_quick trust "$mac" >/dev/null 2>&1 || true
+    rm -f -- "$error_file"
+    info="$(bt_quick info "$mac" 2>/dev/null || true)"
+    if [[ "$(field_from_info Connected "$info")" == yes ]]; then
+      notice 'Bluetooth paired and connected' "$name"
+      return 0
+    fi
+    notice 'Bluetooth paired' "$name is trusted, but is not connected yet"
+    connect_device "$mac" "$name"
+    return
+  fi
+  error="$(sanitize <"$error_file")"
+  rm -f -- "$error_file"
+  choice="$(printf '%s\n%s\n' '󰆍  Retry with PIN/passkey terminal' '󰜺  Cancel' |
+    rofi_menu -dmenu -i -no-custom -click-to-exit -p 'Pairing failed' \
+      -mesg "$(escape_markup "$name ($mac): ${error:-The device rejected automatic pairing}")" -theme "$theme")" || return 1
+  [[ "$choice" == *terminal ]] && interactive_pair "$mac" "$name"
+}
+
+connect_device() {
+  local mac="$1" name="$2" error_file error
+  error_file="$(mktemp "$runtime_dir/obsidian-bluetooth-error.XXXXXX" 2>/dev/null || mktemp /tmp/obsidian-bluetooth-error.XXXXXX)" || return 1
+  chmod 600 "$error_file"
+  notice 'Bluetooth' "Connecting to $name…"
+  if timeout --foreground 35 bluetoothctl --timeout 30 connect "$mac" >"$error_file" 2>&1; then
+    rm -f -- "$error_file"
+    notice 'Bluetooth connected' "$name"
+    return 0
+  fi
+  error="$(sanitize <"$error_file")"
+  rm -f -- "$error_file"
+  notice 'Could not connect' "${error:-$name did not respond}"
+  return 1
+}
+
+confirm_remove() {
+  local name="$1" mac="$2" choice
+  choice="$(printf '%s\n%s\n' 'Cancel' 'Forget Device' |
+    rofi_menu -dmenu -i -no-custom -click-to-exit -p 'Confirm' \
+      -mesg "Forget $(escape_markup "$name") ($mac) and remove its pairing keys?" -theme "$theme")" || return 1
+  [[ "$choice" == 'Forget Device' ]]
+}
+
+device_menu() {
+  local mac="$1" name="$2" paired="$3" connected="$4" trusted="$5" icon="$6"
+  local choice
+  if [[ "$connected" == yes ]]; then
+    choice="$(printf '%s\n%s\n%s\n%s\n' \
+      '󰂲  Disconnect' '󰓃  Audio Settings…' '󰆴  Forget Device…' '󰅖  Back' |
+      rofi_menu -dmenu -i -no-custom -click-to-exit -p 'Bluetooth' \
+        -mesg "$icon  $(escape_markup "$name") • $mac • connected" -theme "$theme")" || return 0
+  elif [[ "$paired" == yes ]]; then
+    if [[ "$trusted" == yes ]]; then trust_action='󰒃  Revoke Device Trust'
+    else trust_action='󰒃  Trust Device'; fi
+    choice="$(printf '%s\n%s\n%s\n%s\n%s\n' \
+      '󰂱  Connect' "$trust_action" '󰓃  Audio Settings…' '󰆴  Forget Device…' '󰅖  Back' |
+      rofi_menu -dmenu -i -no-custom -click-to-exit -p 'Bluetooth' \
+        -mesg "$icon  $(escape_markup "$name") • $mac • paired" -theme "$theme")" || return 0
+  else
+    choice="$(printf '%s\n%s\n' '󰂱  Pair, Trust and Connect' '󰅖  Back' |
+      rofi_menu -dmenu -i -no-custom -click-to-exit -p 'Bluetooth' \
+        -mesg "$icon  $(escape_markup "$name") • $mac • verify pairing mode" -theme "$theme")" || return 0
+  fi
+
+  case "$choice" in
+    *Disconnect)
+      if bt_quick disconnect "$mac" >/dev/null 2>&1; then notice 'Bluetooth disconnected' "$name"
+      else notice 'Could not disconnect' "$name"; fi
+      ;;
+    *Pair,\ Trust*) pair_device "$mac" "$name" ;;
+    *Connect) connect_device "$mac" "$name" ;;
+    *Revoke*)
+      if bt_quick untrust "$mac" >/dev/null 2>&1; then
+        notice 'Bluetooth trust revoked' "$name must be authorized again for protected services"
+      else notice 'Could not revoke Bluetooth trust' "$name"; fi
+      ;;
+    *Trust\ Device*)
+      if bt_quick trust "$mac" >/dev/null 2>&1; then
+        notice 'Bluetooth device trusted' "$name may use authorized services without prompting"
+      else notice 'Could not trust Bluetooth device' "$name"; fi
+      ;;
+    *Audio*) audio_settings ;;
+    *Forget*)
+      if confirm_remove "$name" "$mac"; then
+        if bt_quick remove "$mac" >/dev/null 2>&1; then
+          notice 'Bluetooth device forgotten' "$name"
+        else notice 'Could not forget Bluetooth device' "$name"; fi
+      fi
+      ;;
+    *Back) exec "$0" ;;
+  esac
+}
+
+show_menu() {
+  local info line mac name alias icon paired connected trusted battery rssi label index
+  local scan_index off_index settings_index message
+  local -a labels=() macs=() names=() paired_values=() connected_values=() trusted_values=() icons=() scores=()
+
+  while IFS= read -r line; do
+    [[ "$line" =~ ^Device[[:space:]]+(([[:xdigit:]]{2}:){5}[[:xdigit:]]{2})([[:space:]]+(.*))?$ ]] || continue
+    mac="${BASH_REMATCH[1]}"
+    valid_mac "$mac" || continue
+    info="$(bt_quick info "$mac" 2>/dev/null || true)"
+    [[ -n "$info" ]] || continue
+    alias="$(field_from_info Alias "$info")"
+    name="$(field_from_info Name "$info")"
+    name="$(printf '%s' "${alias:-${name:-$mac}}" | sanitize)"
+    [[ -n "$name" ]] || name="$mac"
+    icon="$(device_icon "$(field_from_info Icon "$info")")"
+    paired="$(field_from_info Paired "$info")"; [[ "$paired" == yes ]] || paired=no
+    connected="$(field_from_info Connected "$info")"; [[ "$connected" == yes ]] || connected=no
+    trusted="$(field_from_info Trusted "$info")"; [[ "$trusted" == yes ]] || trusted=no
+    battery="$(awk '/Battery Percentage:/ {if (match($0, /\(([0-9]+)\)/, m)) print m[1]; exit}' <<<"$info")"
+    rssi="$(field_from_info RSSI "$info")"; [[ "$rssi" =~ ^-?[0-9]+$ ]] || rssi=-127
+
+    if [[ "$connected" == yes ]]; then state='connected'; marker='✓'; score=$((3000 + rssi + 127))
+    elif [[ "$paired" == yes ]]; then state='paired'; marker=' '; score=$((2000 + rssi + 127))
+    else state='available'; marker=' '; score=$((1000 + rssi + 127)); fi
+    battery_label=''
+    [[ "$battery" =~ ^[0-9]+$ ]] && battery_label=" • ${battery}%"
+    display_name="$name"; ((${#display_name} > 29)) && display_name="${display_name:0:28}…"
+    printf -v label '%s  %s  %-25s  %s  …%s%s' "$marker" "$icon" "$display_name" "$state" "${mac: -5}" "$battery_label"
+    labels+=("$label"); macs+=("$mac"); names+=("$name"); paired_values+=("$paired")
+    connected_values+=("$connected"); trusted_values+=("$trusted"); icons+=("$icon"); scores+=("$score")
+  done < <(bt_quick devices 2>/dev/null)
+
+  # Keep connected devices first, then paired devices, then newly discovered ones.
+  for ((i = 0; i < ${#labels[@]}; i++)); do
+    for ((j = i + 1; j < ${#labels[@]}; j++)); do
+      if (( scores[j] > scores[i] )); then
+        for array_name in labels macs names paired_values connected_values trusted_values icons scores; do
+          declare -n array_ref="$array_name"
+          swap="${array_ref[i]}"; array_ref[i]="${array_ref[j]}"; array_ref[j]="$swap"
+          unset -n array_ref
+        done
+      fi
+    done
+  done
+
+  device_count=${#labels[@]}
+  scan_index=${#labels[@]}; labels+=('󰑐  Scan for Nearby Devices')
+  off_index=${#labels[@]}; labels+=('󰂲  Turn Bluetooth Off')
+  settings_index=${#labels[@]}; labels+=('󰓃  Audio Settings…')
+  if (( device_count == 0 )); then message='No known devices • scan to discover headphones and accessories'
+  else message="$device_count known device(s) • select one for connection options"; fi
+
+  index="$(printf '%s\n' "${labels[@]}" | rofi_menu -dmenu -i -no-custom -click-to-exit \
+    -p 'Bluetooth' -mesg "$message" -format i -theme-str 'entry { placeholder: "Search devices…"; }' -theme "$theme")" || return 0
+  [[ "$index" =~ ^[0-9]+$ ]] && (( index < ${#labels[@]} )) || return 0
+
+  if (( index == scan_index )); then
+    run_scan && exec "$0"
+  elif (( index == off_index )); then
+    confirm_power_off && power_off
+  elif (( index == settings_index )); then
+    audio_settings
+  elif (( index < device_count )); then
+    device_menu "${macs[index]}" "${names[index]}" "${paired_values[index]}" \
+      "${connected_values[index]}" "${trusted_values[index]}" "${icons[index]}"
+  fi
+}
+
+case "$mode" in
+  --status)
+    if ! ensure_available >/dev/null; then printf 'unavailable\n'; exit 1; fi
+    [[ "$(controller_powered)" == yes ]] && printf 'on\n' || printf 'off\n'
+    ;;
+  --toggle)
+    ensure_available || exit 1
+    if [[ "$(controller_powered)" == yes ]]; then
+      confirm_power_off && power_off
+    else
+      power_on
+    fi
+    ;;
+  --scan)
+    ensure_available || exit 1
+    [[ "$(controller_powered)" == yes ]] || power_on || exit 1
+    run_scan
+    ;;
+  --refresh)
+    ensure_available || exit 1
+    [[ "$(controller_powered)" == yes ]] || power_on || exit 1
+    run_scan || true
+    exec "$0"
+    ;;
+  menu)
+    ensure_available || exit 1
+    close_existing_menu && exit 0
+    if [[ "$(controller_powered)" != yes ]]; then
+      choice="$(printf '%s\n%s\n' '󰂯  Turn Bluetooth On' '󰓃  Audio Settings…' |
+        rofi_menu -dmenu -i -no-custom -click-to-exit -p 'Bluetooth' \
+          -mesg 'Bluetooth is off' -theme-str 'entry { placeholder: "Choose an action…"; }' -theme "$theme")" || exit 0
+      case "$choice" in
+        *Turn*) power_on && exec "$0" ;;
+        *Audio*) audio_settings ;;
+      esac
+      exit 0
+    fi
+    show_menu
+    ;;
+  *)
+    printf 'Usage: obsidian-bluetooth [--status|--toggle|--scan|--refresh]\n' >&2
+    exit 2
+    ;;
+esac

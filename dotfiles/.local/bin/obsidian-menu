@@ -179,7 +179,7 @@ utilities_menu() {
     *activity) kitty btop --force-utf --config "$HOME/.config/btop/obsidian-ember.conf" ;;
     *Audio*) if command -v pavucontrol >/dev/null; then pavucontrol; else kitty alsamixer; fi ;;
     *Wi-Fi*) nm-connection-editor ;;
-    *Bluetooth*) systemsettings kcm_bluetooth ;;
+    *Bluetooth*) obsidian-bluetooth ;;
     *Terminal) kitty ;;
     *Files) dolphin ;;
   esac

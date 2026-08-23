@@ -20,6 +20,7 @@ window#waybar { background: transparent; color: @text; }
 #custom-agents,
 #custom-activity,
 #pulseaudio,
+#bluetooth,
 #network,
 #backlight,
 #battery,
@@ -89,10 +90,20 @@ window#waybar.empty #window {
   box-shadow: none;
 }
 #custom-activity { color: @muted; padding: 0 12px; }
-#network { font-size: 14px; padding: 0 13px; }
+#bluetooth, #network { font-size: 14px; padding: 0 13px; }
+#bluetooth.on,
+#bluetooth.connected,
+#bluetooth.discovering,
+#bluetooth.pairable,
 #network.wifi { color: @accent2; }
-#network:hover { background: @hover; border-color: @accent; }
-#pulseaudio.muted, #network.disconnected, #network.disabled { color: @danger; }
+#bluetooth.discovering { color: @accent; }
+#bluetooth:hover, #network:hover { background: @hover; border-color: @accent; }
+#pulseaudio.muted,
+#bluetooth.disabled,
+#bluetooth.off,
+#bluetooth.no-controller,
+#network.disconnected,
+#network.disabled { color: @danger; }
 #battery.charging, #battery.plugged { color: @accent; }
 #battery.warning:not(.charging) { color: @accent2; }
 #battery.critical:not(.charging) { color: @danger; }
@@ -117,6 +128,7 @@ window#waybar > box,
 #custom-agents,
 #custom-activity,
 #pulseaudio,
+#bluetooth,
 #network,
 #backlight,
 #battery,

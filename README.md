@@ -113,6 +113,16 @@ network list, and free-form menu input cannot accidentally trigger an action.
 |---|---|
 | ![Wi-Fi network menu](screenshots/wifi-menu-enabled.png) | ![Wi-Fi disabled menu](screenshots/wifi-menu-disabled.png) |
 
+## Bluetooth controls
+
+The Bluetooth icon next to Wi-Fi reflects controller and connection state.
+Left-click opens a matching Rofi device manager. It supports power control,
+nearby-device scanning, pairing and trust authorization, connect/disconnect,
+forgetting devices, battery display when BlueZ provides it, and direct audio
+settings. Middle-click scans and refreshes the menu; right-click toggles power.
+Headphones and headsets use the installed PipeWire/WirePlumber A2DP and HFP/HSP
+profiles. PIN or passkey devices fall back to an interactive pairing terminal.
+
 ## iPhone USB-only tethering
 
 Connect and unlock the iPhone, enable **Settings → Personal Hotspot → Allow
