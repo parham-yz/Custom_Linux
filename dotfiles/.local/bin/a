@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Omarchy-compatible inline shortcut for the selected coding agent.
+exec obsidian-agent launch --inline "$@"

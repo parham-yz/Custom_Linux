@@ -12,6 +12,7 @@ SUPER + SHIFT + RETURN           Browser
 SUPER + SHIFT + ALT + B          Private browser window
 SUPER + SHIFT + F                File manager
 SUPER + SHIFT + N                Neovim
+SUPER + SHIFT + CTRL + A         Launch / choose default AI coding agent
 SUPER + W                        Close window
 SUPER + T                        Toggle floating / tiling
 SUPER + J                        Toggle split direction

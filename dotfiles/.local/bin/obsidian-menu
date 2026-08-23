@@ -17,6 +17,7 @@ root_menu() {
   local choice
   choice="$(choose ' OMA ' 'Obsidian Ember • Omarchy controls for Fedora Asahi' \
     '󰀻  Applications' \
+    '󱚣  AI Agents' \
     '󰄀  Capture' \
     '󰏘  Style' \
     '󰔡  Toggle' \
@@ -27,6 +28,7 @@ root_menu() {
     '󰋼  About')"
   case "$choice" in
     *Applications) rofi -show drun -show-icons ;;
+    *AI\ Agents) exec "$0" agents ;;
     *Capture) exec "$0" capture ;;
     *Style) exec "$0" style ;;
     *Toggle) exec "$0" toggle ;;
@@ -35,6 +37,36 @@ root_menu() {
     *Setup) exec "$0" setup ;;
     *Keybindings) obsidian-keybindings ;;
     *About) notify-send 'Obsidian Ember' 'Omarchy-inspired Fedora Asahi desktop • Super+K shows every shortcut' ;;
+  esac
+}
+
+agents_menu() {
+  local choice prompt default_agent approval crash_state
+  default_agent="$(obsidian-agent get 2>/dev/null || true)"
+  approval="$(jq -r '.approvalMode // "ask"' "${XDG_CONFIG_HOME:-$HOME/.config}/obsidian-agent/config.json" 2>/dev/null || echo ask)"
+  crash_state="$(obsidian-agent-crash-watch --status 2>/dev/null || echo unavailable)"
+  choice="$(choose 'AI Agents' "Default: ${default_agent:-not selected} • approval: $approval • crash watch: $crash_state" \
+    '󱚣  Open usage dashboard' \
+    '󰆍  Launch default agent' \
+    '󰚩  Choose default agent' \
+    '󰭹  Start with a prompt' \
+    '󰒓  Agent settings' \
+    '󰑓  Refresh usage' \
+    '󰅖  Toggle crash diagnosis')"
+  case "$choice" in
+    *dashboard) obsidian-agent usage panel ;;
+    *Launch*) obsidian-agent launch ;;
+    *Choose*) obsidian-agent pick ;;
+    *prompt)
+      prompt="$(printf '' | rofi -dmenu -p 'Agent prompt' -mesg 'The prompt is passed as one safe argument.')" || return 0
+      [[ -n $prompt ]] && obsidian-agent prompt "$prompt"
+      ;;
+    *settings) obsidian-agent settings ;;
+    *Refresh*) systemctl --user start obsidian-agent-usage.service || obsidian-agent usage update --force ;;
+    *crash*)
+      obsidian-agent-crash-watch --toggle >/dev/null
+      systemctl --user restart obsidian-agent-crash-watch.service 2>/dev/null || true
+      ;;
   esac
 }
 
@@ -179,6 +211,7 @@ setup_menu() {
 
 case "${1:-root}" in
   root) root_menu ;;
+  agents) agents_menu ;;
   capture) capture_menu ;;
   style) style_menu ;;
   toggle) toggle_menu ;;

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+prompt_file=${1:?prompt file required}
+shift
+cleanup() { rm -f -- "$prompt_file"; }
+trap cleanup EXIT HUP INT TERM
+"$@"

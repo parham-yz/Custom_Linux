@@ -84,6 +84,23 @@ cat manifests/flatpak-installed.tsv
 
 
 
+
+## Native AI coding agent
+
+This desktop now includes an Omarchy 4-style native agent layer. It has a default
+agent picker, lazy per-user installs, a dedicated launch shortcut, Waybar usage
+status, a Rofi dashboard, OS-aware skills, and private click-to-diagnose crash
+handoff. Press `Super+Shift+Ctrl+A`, open **OMA â€º AI Agents**, or run:
+
+```bash
+obsidian agent pick
+```
+
+Approval defaults to `ask`, and authenticated usage checks default to off;
+Omarchy-style automatic approval and provider network checks are separate
+opt-ins. See [AI_AGENT_INTEGRATION.md](AI_AGENT_INTEGRATION.md) for usage, privacy details,
+provider limits, tests, and the official research sources.
+
 ## Wi-Fi dropdown
 
 Click the persistent Wi-Fi icon in Waybar to open the custom network menu. The
@@ -133,7 +150,9 @@ The configuration is tailored to Fedora Asahi Remix on Apple Silicon and a 2560Ã
 ## Verify
 
 ```bash
+./scripts/test-agent-integration.sh
 ./scripts/verify-snapshot.sh
 ```
 
-This checks file hashes and scans tracked text for common secret patterns. The authoritative integrity list is `SHA256SUMS`.
+The first command tests the native AI layer in an isolated home directory. The
+second checks file hashes and scans tracked text for common secret patterns. The authoritative integrity list is `SHA256SUMS`.

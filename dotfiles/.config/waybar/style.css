@@ -17,6 +17,7 @@ window#waybar { background: transparent; color: @text; }
 #custom-weather,
 #clock,
 #custom-updates,
+#custom-agents,
 #custom-activity,
 #pulseaudio,
 #network,
@@ -68,6 +69,18 @@ window#waybar.empty #window {
 #clock { color: @accent2; font-weight: 700; }
 #custom-weather { color: @accent2; }
 #custom-updates { color: @accent; }
+#custom-agents { color: @muted; padding: 0 12px; }
+#custom-agents.active { color: @accent2; }
+#custom-agents.warning { color: @accent; }
+#custom-agents.critical { color: @danger; }
+#custom-agents.empty {
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
 #custom-updates.current {
   min-width: 0;
   padding: 0;
@@ -101,6 +114,7 @@ window#waybar > box,
 #custom-weather,
 #clock,
 #custom-updates,
+#custom-agents,
 #custom-activity,
 #pulseaudio,
 #network,

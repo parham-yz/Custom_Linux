@@ -1,0 +1,356 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Native AI-agent entry point for the Obsidian Ember desktop.
+# State is kept outside the snapshot so provider choices and credentials are
+# never committed with the desktop configuration.
+export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:/home/linuxbrew/.linuxbrew/bin:$PATH"
+
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}/obsidian-agent"
+STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}/obsidian-agent"
+CONFIG_FILE="$CONFIG_HOME/config.json"
+SKILLS_SOURCE="$HOME/.local/share/obsidian-agent/skills"
+
+provider_valid() {
+  case "$1" in claude|codex|opencode|pi|omp|gemini|grok|copilot|crush) return 0;; *) return 1;; esac
+}
+
+provider_name() {
+  case "$1" in
+    claude) echo 'Claude Code';; codex) echo 'Codex';; opencode) echo 'OpenCode';;
+    pi) echo 'Pi';; omp) echo 'Oh My Pi';; gemini) echo 'Gemini';;
+    grok) echo 'Grok';; copilot) echo 'GitHub Copilot';; crush) echo 'Crush';;
+    *) echo "$1";;
+  esac
+}
+
+provider_package() {
+  # These are the package selectors used by Omarchy 4. mise is preferred.
+  case "$1" in
+    claude) echo 'claude';; codex) echo 'codex';; opencode) echo 'opencode';;
+    pi) echo 'pi';; omp) echo 'github:can1357/oh-my-pi';; gemini) echo 'gemini';;
+    grok) echo 'npm:@xai-official/grok';; copilot) echo 'copilot';; crush) echo 'crush';;
+  esac
+}
+
+provider_npm_package() {
+  case "$1" in
+    claude) echo '@anthropic-ai/claude-code';; codex) echo '@openai/codex';;
+    opencode) echo 'opencode-ai';; pi) echo '@mariozechner/pi-coding-agent';;
+    gemini) echo '@google/gemini-cli';; grok) echo '@xai-official/grok';;
+    copilot) echo '@github/copilot';; *) return 1;;
+  esac
+}
+
+config_read() {
+  local filter="$1" fallback="$2"
+  if [[ -s $CONFIG_FILE ]] && jq -e . "$CONFIG_FILE" >/dev/null 2>&1; then
+    jq -r "$filter // \"$fallback\"" "$CONFIG_FILE"
+  else
+    printf '%s\n' "$fallback"
+  fi
+}
+
+config_write() {
+  local filter="$1" value="$2" tmp
+  mkdir -p "$CONFIG_HOME"
+  chmod 700 "$CONFIG_HOME"
+  tmp=$(mktemp "$CONFIG_HOME/.config.XXXXXX")
+  if [[ -s $CONFIG_FILE ]] && jq -e . "$CONFIG_FILE" >/dev/null 2>&1; then
+    jq --arg value "$value" "$filter" "$CONFIG_FILE" >"$tmp"
+  else
+    jq -n --arg value "$value" '{schemaVersion:1, default:"", approvalMode:"ask", launchDirectory:"~/Work", crashDiagnosis:true, usageNetwork:false} | '"$filter" >"$tmp"
+  fi
+  chmod 600 "$tmp"
+  mv "$tmp" "$CONFIG_FILE"
+}
+
+agent_get() { config_read '.default' ''; }
+approval_get() { config_read '.approvalMode' 'ask'; }
+launch_directory_get() { config_read '.launchDirectory' '~/Work'; }
+usage_network_get() { config_read '.usageNetwork' 'false'; }
+
+skills_install() {
+  local target skill
+  [[ -d $SKILLS_SOURCE ]] || return 0
+  for target in \
+    "$HOME/.claude/skills" \
+    "$HOME/.codex/skills" \
+    "$HOME/.config/opencode/skills" \
+    "$HOME/.gemini/skills"; do
+    mkdir -p "$target"
+    for skill in obsidian-desktop diagnose-crash; do
+      ln -sfn "$SKILLS_SOURCE/$skill" "$target/$skill"
+    done
+  done
+}
+
+agent_set() {
+  local agent="${1:-}"
+  provider_valid "$agent" || { echo "Unsupported agent: $agent" >&2; return 2; }
+  config_write '.default = $value' "$agent"
+  skills_install
+  printf 'Default agent: %s\n' "$(provider_name "$agent")"
+}
+
+confirm() {
+  local prompt="$1"
+  if [[ ${OBSIDIAN_AGENT_ASSUME_YES:-0} == 1 ]]; then return 0; fi
+  if [[ -n ${DISPLAY:-}${WAYLAND_DISPLAY:-} ]] && command -v rofi >/dev/null; then
+    [[ $(printf 'Cancel\nContinue\n' | rofi -dmenu -i -p 'AI Agent' -mesg "$prompt") == Continue ]]
+  else
+    read -r -p "$prompt [y/N] " answer
+    [[ $answer == [Yy]* ]]
+  fi
+}
+
+agent_install() {
+  local agent="${1:-}" package npm_package
+  provider_valid "$agent" || { echo "Unsupported agent: $agent" >&2; return 2; }
+  command -v "$agent" >/dev/null 2>&1 && return 0
+  package=$(provider_package "$agent")
+  if command -v mise >/dev/null 2>&1; then
+    install_command=(mise use -g "$package")
+  elif npm_package=$(provider_npm_package "$agent" 2>/dev/null) && command -v npm >/dev/null 2>&1; then
+    install_command=(npm install --global --prefix "$HOME/.local" "$npm_package")
+  else
+    echo "No automatic installer is declared for $(provider_name "$agent") on this system." >&2
+    echo "Install it manually, or install mise and run: mise use -g $package" >&2
+    return 1
+  fi
+  printf -v install_display '%q ' "${install_command[@]}"
+  confirm "This runs an unpinned third-party installer with user access:
+$install_display
+Package install scripts may execute code. Continue?" || return 1
+  echo "Installing $(provider_name "$agent")…" >&2
+  "${install_command[@]}"
+  hash -r
+  command -v "$agent" >/dev/null 2>&1 || {
+    echo "Installation finished but '$agent' is not on PATH." >&2
+    return 1
+  }
+}
+
+picker_rows() {
+  local agent status mark
+  for agent in claude codex opencode pi omp gemini grok copilot crush; do
+    if command -v "$agent" >/dev/null 2>&1; then status='Installed'; mark='●'; else status='Install on first use'; mark='○'; fi
+    printf '%s  %-15s  %s\t%s\n' "$mark" "$(provider_name "$agent")" "$status" "$agent"
+  done
+}
+
+agent_pick() {
+  local selection agent launch_after="${1:-yes}"
+  if [[ -n ${OBSIDIAN_AGENT_TEST_SELECTION:-} ]]; then
+    agent=$OBSIDIAN_AGENT_TEST_SELECTION
+  elif [[ -n ${DISPLAY:-}${WAYLAND_DISPLAY:-} ]] && command -v rofi >/dev/null; then
+    selection=$(picker_rows | cut -f1 | rofi -dmenu -i -p 'Default Agent' \
+      -theme-str 'window { width: 700px; } listview { lines: 9; fixed-height: false; } entry { placeholder: "Search agents…"; }' \
+      -mesg 'Choose your coding agent. Missing tools are installed only after confirmation.') || return 0
+    agent=$(picker_rows | awk -F '\t' -v selected="$selection" '$1 == selected { print $2; exit }')
+  else
+    echo 'Available agents:'
+    picker_rows | cut -f1
+    read -r -p 'Agent id: ' agent
+  fi
+  [[ -n ${agent:-} ]] || return 0
+  provider_valid "$agent" || { echo "Unsupported agent: $agent" >&2; return 2; }
+  if ! command -v "$agent" >/dev/null 2>&1; then
+    agent_install "$agent" || return 0
+  fi
+  agent_set "$agent"
+  [[ $launch_after == yes ]] && agent_launch --provider "$agent"
+}
+
+build_command() {
+  local agent="$1" mode="$2" prompt="${3:-}"
+  AGENT_COMMAND=()
+  case "$agent:$mode" in
+    claude:safe) AGENT_COMMAND=(claude --permission-mode plan --safe-mode);;
+    codex:safe) AGENT_COMMAND=(codex --sandbox read-only --ask-for-approval on-request);;
+    claude:auto) AGENT_COMMAND=(claude --permission-mode auto);;
+    codex:auto) AGENT_COMMAND=(codex --approve-for-me);;
+    opencode:auto) AGENT_COMMAND=(opencode --auto);;
+    gemini:auto) AGENT_COMMAND=(gemini --yolo);;
+    grok:auto) AGENT_COMMAND=(grok --permission-mode bypassPermissions);;
+    copilot:auto) AGENT_COMMAND=(copilot --allow-all);;
+    crush:auto) AGENT_COMMAND=(crush --yolo);;
+    omp:auto) AGENT_COMMAND=(omp --auto-approve);;
+    pi:auto) AGENT_COMMAND=(pi);;
+    *) AGENT_COMMAND=("$agent");;
+  esac
+  [[ -z $prompt ]] && return 0
+  case "$agent" in
+    opencode) AGENT_COMMAND+=(--prompt "$prompt");;
+    gemini) AGENT_COMMAND+=(--prompt-interactive "$prompt");;
+    crush)
+      if [[ $mode == auto ]]; then AGENT_COMMAND=(crush run "$prompt"); else AGENT_COMMAND+=("$prompt"); fi
+      ;;
+    claude|codex|grok) AGENT_COMMAND+=(-- "$prompt");;
+    *) AGENT_COMMAND+=("$prompt");;
+  esac
+}
+
+print_command() { printf '%q ' "$@"; printf '\n'; }
+
+agent_launch() {
+  local inline=false prompt='' prompt_file='' agent='' directory mode forced_mode=''
+  while (($#)); do
+    case "$1" in
+      --inline) inline=true; shift;;
+      --prompt) prompt=${2:?--prompt needs a value}; shift 2;;
+      --provider) agent=${2:?--provider needs a value}; shift 2;;
+      --safe) forced_mode=safe; shift;;
+      *) echo "Unexpected launch argument: $1" >&2; return 2;;
+    esac
+  done
+  [[ -n $agent ]] || agent=$(agent_get)
+  if [[ -z $agent ]]; then agent_pick yes; return; fi
+  provider_valid "$agent" || { echo "Unsupported configured agent: $agent" >&2; return 2; }
+  if ! command -v "$agent" >/dev/null 2>&1; then
+    agent_install "$agent" || return 0
+  fi
+  mode=${forced_mode:-$(approval_get)}
+  [[ $mode == ask || $mode == auto || $mode == safe ]] || mode=ask
+
+  if [[ -n $prompt ]]; then
+    prompt_root="${XDG_RUNTIME_DIR:-$STATE_HOME}/obsidian-agent-prompts"
+    mkdir -p "$prompt_root"
+    chmod 700 "$prompt_root"
+    find "$prompt_root" -maxdepth 1 -type f -name 'task.*' -mmin +60 -delete 2>/dev/null || true
+    prompt_file=$(mktemp "$prompt_root/task.XXXXXX")
+    chmod 600 "$prompt_file"
+    printf '%s\n' "$prompt" >"$prompt_file"
+    if [[ ${OBSIDIAN_AGENT_TESTING:-0} == 1 && -n ${OBSIDIAN_AGENT_PROMPT_CAPTURE:-} ]]; then
+      (umask 077; printf '%s\n' "$prompt" >"$OBSIDIAN_AGENT_PROMPT_CAPTURE")
+    fi
+    prompt="Read the complete user task from $prompt_file before responding. The file is private local input; do not quote secrets from it unnecessarily."
+  fi
+  build_command "$agent" "$mode" "$prompt"
+  if [[ -n $prompt_file ]]; then
+    LAUNCH_COMMAND=(obsidian-agent-session "$prompt_file" "${AGENT_COMMAND[@]}")
+  else
+    LAUNCH_COMMAND=("${AGENT_COMMAND[@]}")
+  fi
+
+  directory=$PWD
+  if [[ $PWD == "$HOME" ]]; then
+    directory=$(launch_directory_get)
+    directory=${directory/#\~/$HOME}
+    [[ -d $directory ]] || directory=$HOME
+  fi
+
+  if [[ ${OBSIDIAN_AGENT_DRY_RUN:-0} == 1 ]]; then
+    if [[ $inline == true ]]; then print_command "${LAUNCH_COMMAND[@]}"
+    else print_command kitty --class org.obsidian.agent --title "AI Agent — $(provider_name "$agent")" --directory "$directory" "${LAUNCH_COMMAND[@]}"
+    fi
+    [[ -n $prompt_file ]] && rm -f "$prompt_file"
+    return 0
+  fi
+
+  if [[ $inline == true ]]; then cd "$directory"; exec "${LAUNCH_COMMAND[@]}"; fi
+  exec kitty --class org.obsidian.agent --title "AI Agent — $(provider_name "$agent")" \
+    --directory "$directory" "${LAUNCH_COMMAND[@]}"
+}
+
+agent_settings() {
+  local current choice mode network
+  current=$(agent_get); mode=$(approval_get); network=$(usage_network_get)
+  if [[ -n ${OBSIDIAN_AGENT_TEST_SETTING:-} ]]; then choice=$OBSIDIAN_AGENT_TEST_SETTING
+  else
+    choice=$(printf '%s\n' \
+      'Choose default agent' \
+      "Approval mode: $mode" \
+      "Network usage checks: $network" \
+      'Install agent skills' \
+      'Run diagnostics' | rofi -dmenu -i -p 'Agent Settings' \
+      -mesg "Default: $(provider_name "${current:-none}")") || return 0
+  fi
+  case "$choice" in
+    'Choose default agent') agent_pick no;;
+    'Approval mode:'*)
+      if [[ $mode == ask ]]; then
+        confirm 'Enable Omarchy-style auto approval? Agents may modify files and run commands without asking.' || return 0
+        config_write '.approvalMode = $value' auto
+      else config_write '.approvalMode = $value' ask
+      fi
+      ;;
+    'Network usage checks:'*)
+      if [[ $network == false ]]; then
+        confirm 'Allow collectors to contact provider usage/billing endpoints with existing credentials? Local transcript totals never need this.' || return 0
+        config_write '.usageNetwork = ($value == "true")' true
+      else
+        config_write '.usageNetwork = ($value == "true")' false
+      fi
+      systemctl --user start obsidian-agent-usage.service 2>/dev/null || true
+      ;;
+    'Install agent skills') skills_install; notify-send 'AI Agent' 'OS skills installed for supported agents.' 2>/dev/null || true;;
+    'Run diagnostics') exec "$0" doctor;;
+  esac
+}
+
+agent_invite() {
+  local marker="$STATE_HOME/setup-invited"
+  [[ -e $marker || -n $(agent_get) ]] && return 0
+  mkdir -p "$STATE_HOME"; chmod 700 "$STATE_HOME"; (umask 077; : >"$marker")
+  notify-send -a 'Obsidian Agent' -u normal 'Set your default AI agent' \
+    'Press Super+Shift+Ctrl+A or open OMA › Setup › Default AI agent.' 2>/dev/null || true
+}
+
+agent_doctor() {
+  local ok=true command agent
+  printf 'Obsidian Agent diagnostics\n\n'
+  for command in jq python3 kitty rofi notify-send coredumpctl; do
+    if command -v "$command" >/dev/null; then printf '  [ok] %s\n' "$command"; else printf '  [missing] %s\n' "$command"; ok=false; fi
+  done
+  agent=$(agent_get)
+  if [[ -z $agent ]]; then printf '  [setup] no default agent selected\n'; ok=false
+  elif command -v "$agent" >/dev/null; then printf '  [ok] default: %s\n' "$(provider_name "$agent")"
+  else printf '  [missing] default command: %s\n' "$agent"; ok=false
+  fi
+  printf '  [mode] approval: %s\n' "$(approval_get)"
+  printf '  [privacy] network usage checks: %s\n' "$(usage_network_get)"
+  [[ $ok == true ]]
+}
+
+usage_command() { exec obsidian-agent-usage "$@"; }
+crash_command() { exec obsidian-agent-crash "$@"; }
+
+usage() {
+  cat <<'EOF'
+Usage: obsidian-agent [command]
+  launch [--inline] [--prompt TEXT]  Launch the selected agent
+  prompt [--inline] TEXT...          Launch with a prompt
+  pick                               Choose, install, and launch an agent
+  set AGENT                          Set the default without launching
+  get                                Print the configured agent id
+  install AGENT                      Install one supported agent
+  settings                           Open agent settings
+  usage {bar|panel|update|next}      Usage and rate-limit dashboard
+  crash PID [COMM EXE SIGNAL]        Brief the agent about a core dump
+  skills install                     Link OS skills into agent harnesses
+  doctor                             Check integration dependencies
+EOF
+}
+
+case "${1:-launch}" in
+  launch) shift || true; agent_launch "$@";;
+  prompt)
+    shift; inline=(); [[ ${1:-} == --inline ]] && { inline=(--inline); shift; }
+    (($#)) || { echo 'A prompt is required.' >&2; exit 2; }
+    agent_launch "${inline[@]}" --prompt "$*"
+    ;;
+  pick) shift; agent_pick yes;;
+  set) shift; agent_set "${1:-}";;
+  get) agent_get;;
+  install) shift; agent_install "${1:-}";;
+  settings) agent_settings;;
+  invite) agent_invite;;
+  usage) shift; usage_command "${@:-panel}";;
+  bar|panel|update|next) usage_command "$@";;
+  crash) shift; crash_command "$@";;
+  skills) [[ ${2:-} == install ]] || { usage; exit 2; }; skills_install;;
+  doctor) agent_doctor;;
+  help|-h|--help) usage;;
+  *) echo "Unknown command: $1" >&2; usage >&2; exit 2;;
+esac

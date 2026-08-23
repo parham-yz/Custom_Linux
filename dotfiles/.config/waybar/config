@@ -9,7 +9,7 @@
   "reload_style_on_change": true,
   "modules-left": ["custom/launcher", "hyprland/workspaces", "hyprland/window", "custom/weather", "custom/updates"],
   "modules-center": ["custom/notch"],
-  "modules-right": ["clock", "custom/activity", "pulseaudio", "network", "backlight", "battery", "tray"],
+  "modules-right": ["clock", "custom/agents", "custom/activity", "pulseaudio", "network", "backlight", "battery", "tray"],
   "custom/launcher": {
     "format": "  OMA  ",
     "tooltip": false,
@@ -49,6 +49,16 @@
     "exec": "obsidian-updates check",
     "interval": 21600,
     "on-click": "obsidian-updates run"
+  },
+  "custom/agents": {
+    "return-type": "json",
+    "exec": "obsidian-agent usage bar",
+    "interval": 30,
+    "restart-interval": 5,
+    "tooltip": true,
+    "on-click": "obsidian-agent usage panel",
+    "on-click-right": "obsidian-agent launch",
+    "on-click-middle": "obsidian-agent usage next"
   },
   "custom/activity": {
     "format": "󰓅",

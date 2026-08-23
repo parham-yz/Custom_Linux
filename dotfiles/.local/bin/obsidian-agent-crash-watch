@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+set -uo pipefail
+export PATH="$HOME/.local/bin:/home/linuxbrew/.linuxbrew/bin:$PATH"
+readonly MESSAGE_ID=fc2e22bc6ee647b6b90729ab34a250b1
+DEDUPE_SECONDS=${OBSIDIAN_AGENT_CRASH_DEDUPE_SECONDS:-60}
+[[ $DEDUPE_SECONDS =~ ^[0-9]+$ ]] || DEDUPE_SECONDS=60
+readonly DEDUPE_SECONDS
+readonly IGNORE_PATTERN=${OBSIDIAN_AGENT_CRASH_IGNORE:-}
+readonly TOGGLE="${XDG_STATE_HOME:-$HOME/.local/state}/obsidian-agent/crash-watch-disabled"
+declare -A last_notified
+
+case "${1:-}" in
+  --toggle)
+    mkdir -p "$(dirname "$TOGGLE")"; chmod 700 "$(dirname "$TOGGLE")"
+    if [[ -e $TOGGLE ]]; then rm -f "$TOGGLE"; echo enabled; else (umask 077; : >"$TOGGLE"); echo disabled; fi
+    exit 0;;
+  --status) [[ -e $TOGGLE ]] && echo disabled || echo enabled; exit 0;;
+esac
+[[ -e $TOGGLE ]] && exit 0
+
+sanitize() { local value; value=$(LC_ALL=C tr '\r\n\t' '   ' | tr -cd '[:print:]'); printf '%.240s' "$value"; }
+
+announce() {
+  local name=$1 pid=$2 exe=$3 signal=$4 action
+  action=$(timeout 45s notify-send --app-name='Obsidian Agent' --urgency=critical --wait \
+    --action=diagnose='Diagnose with AI' --action=default='Dismiss' \
+    "Process crashed: $name" 'Only sanitized metadata is handed off. Deeper stack inspection requires separate approval.' 2>/dev/null || true)
+  if [[ $action == diagnose ]]; then
+    if [[ -n ${OBSIDIAN_AGENT_CRASH_LAUNCH_LOG:-} ]]; then
+      printf '%q ' obsidian-agent crash "$pid" "$name" "$exe" "$signal" >>"$OBSIDIAN_AGENT_CRASH_LAUNCH_LOG"
+      printf '\n' >>"$OBSIDIAN_AGENT_CRASH_LAUNCH_LOG"
+    else
+      systemd-run --user --collect --quiet --unit="obsidian-agent-crash-$pid-$RANDOM" obsidian-agent crash "$pid" "$name" "$exe" "$signal" >/dev/null 2>&1
+    fi
+  fi
+}
+
+if [[ -n ${OBSIDIAN_AGENT_CRASH_INPUT:-} ]]; then
+  stream=(cat "$OBSIDIAN_AGENT_CRASH_INPUT")
+else
+  stream=(journalctl --follow --lines=0 --output=json "MESSAGE_ID=$MESSAGE_ID")
+fi
+
+"${stream[@]}" 2>/dev/null |
+while IFS= read -r entry; do
+  IFS=$'\t' read -r uid comm pid exe signal < <(jq -r '[._UID // "-", .COREDUMP_COMM // "-", .COREDUMP_PID // "-", .COREDUMP_EXE // "-", .COREDUMP_SIGNAL_NAME // "-"] | @tsv' <<<"$entry" 2>/dev/null)
+  [[ $uid =~ ^[0-9]+$ && $pid =~ ^[0-9]+$ ]] || continue
+  ((uid == UID)) || continue
+  [[ -n $(obsidian-agent get 2>/dev/null) ]] || continue
+  comm=$(printf '%s' "$comm" | sanitize)
+  exe=$(printf '%s' "$exe" | sanitize)
+  signal=$(printf '%s' "$signal" | sanitize)
+  name=$comm; [[ $exe == /* ]] && name=${exe##*/}
+  [[ -n $IGNORE_PATTERN && $name =~ $IGNORE_PATTERN ]] && continue
+  [[ $name == obsidian-agent* ]] && continue
+  now=$EPOCHSECONDS
+  (((now - ${last_notified[$name]:-0}) < DEDUPE_SECONDS)) && continue
+  last_notified[$name]=$now
+  if [[ ${OBSIDIAN_AGENT_CRASH_SYNC:-0} == 1 ]]; then
+    announce "$name" "$pid" "$exe" "$signal"
+  elif (( $(jobs -pr | wc -l) < 3 )); then
+    announce "$name" "$pid" "$exe" "$signal" &
+  fi
+done
+
+# A real journal stream should never end. Fail so Restart=on-failure revives it.
+[[ -n ${OBSIDIAN_AGENT_CRASH_INPUT:-} ]] && exit 0
+exit 1

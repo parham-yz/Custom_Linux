@@ -1,0 +1,315 @@
+#!/usr/bin/env python3
+"""Collect and present native AI coding-agent usage for Waybar and Rofi."""
+from __future__ import annotations
+
+import argparse
+import concurrent.futures
+import datetime as dt
+import html
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+
+HOME = Path.home()
+STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", HOME / ".local/state")) / "obsidian-agent" / "usage"
+CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config")) / "obsidian-agent"
+DEFAULT_COLLECTOR_DIR = HOME / ".local/lib/obsidian-agent/collectors"
+TESTING = os.environ.get("OBSIDIAN_AGENT_TESTING") == "1"
+COLLECTOR_DIR = Path(os.environ.get("OBSIDIAN_AGENT_COLLECTOR_DIR", DEFAULT_COLLECTOR_DIR)) if TESTING else DEFAULT_COLLECTOR_DIR
+ALLOWED_COLLECTORS = {"claude", "codex", "fireworks"}
+SELECTED_FILE = STATE_DIR.parent / "selected-provider"
+GLYPH = "󱚣"
+
+
+def read_json(path: Path):
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        return value if isinstance(value, dict) else None
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def private_dir(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+    path.chmod(0o700)
+
+
+def atomic_json(path: Path, value: dict) -> None:
+    private_dir(path.parent)
+    fd, name = tempfile.mkstemp(prefix=f".{path.stem}.", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(value, stream, ensure_ascii=False, indent=2)
+            stream.write("\n")
+        os.chmod(name, 0o600)
+        os.replace(name, path)
+    finally:
+        try: os.unlink(name)
+        except FileNotFoundError: pass
+
+
+def collector_names() -> list[str]:
+    configured = os.environ.get("OBSIDIAN_AGENT_COLLECTORS", "").strip()
+    if configured:
+        return [x for x in configured.replace(",", " ").split() if x]
+    return ["claude", "codex", "fireworks"]
+
+
+def usage_network_enabled() -> bool:
+    config = read_json(CONFIG_DIR / "config.json") or {}
+    return config.get("usageNetwork") is True
+
+
+def collect_one(name: str, flags: list[str]) -> tuple[str, dict | None, str]:
+    if name not in ALLOWED_COLLECTORS and not TESTING:
+        return name, None, "collector is not allowlisted"
+    if not name or any(part in name for part in ("/", "\\", "..")):
+        return name, None, "invalid collector name"
+    root = COLLECTOR_DIR.resolve()
+    path = (root / name).resolve()
+    try:
+        path.relative_to(root)
+        stat = path.stat()
+    except (OSError, ValueError):
+        return name, None, f"collector missing or outside root: {path}"
+    if stat.st_uid != os.getuid() or stat.st_mode & 0o022 or not os.access(path, os.X_OK):
+        return name, None, "collector must be user-owned, executable, and not group/world-writable"
+    env = os.environ.copy()
+    env["OBSIDIAN_AGENT_USAGE_NETWORK"] = "1" if usage_network_enabled() else "0"
+    try:
+        result = subprocess.run([str(path), *flags], text=True, capture_output=True, env=env,
+                                timeout=int(os.environ.get("OBSIDIAN_AGENT_COLLECTOR_TIMEOUT", "45")), check=False)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return name, None, str(error)
+    if result.returncode:
+        return name, None, result.stderr.strip() or f"exit {result.returncode}"
+    try:
+        record = json.loads(result.stdout)
+        if not isinstance(record, dict) or not record.get("id"):
+            raise ValueError("collector returned no record id")
+        return name, record, result.stderr.strip()
+    except (json.JSONDecodeError, ValueError) as error:
+        return name, None, str(error)
+
+
+def update(flags: list[str], names: list[str] | None = None) -> int:
+    private_dir(STATE_DIR.parent)
+    private_dir(STATE_DIR)
+    names = names or collector_names()
+    failures = 0
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, len(names))) as pool:
+        jobs = [pool.submit(collect_one, name, flags) for name in names]
+        for job in concurrent.futures.as_completed(jobs):
+            name, record, warning = job.result()
+            if warning:
+                print(f"{name}: {warning}", file=sys.stderr)
+            if record is None:
+                failures += 1
+                continue
+            atomic_json(STATE_DIR / f"{name}.json", record)
+    return 1 if failures else 0
+
+
+def records() -> list[dict]:
+    result = []
+    if not STATE_DIR.is_dir(): return result
+    for path in sorted(STATE_DIR.glob("*.json")):
+        record = read_json(path)
+        if record and record.get("id"): result.append(record)
+    return result
+
+
+def n(value) -> int:
+    try: return max(0, round(float(value or 0)))
+    except (TypeError, ValueError): return 0
+
+
+def has_data(record: dict) -> bool:
+    return any((n(record.get("todayPrompts")), n(record.get("todaySessions")),
+                n(record.get("totalPrompts")), n(record.get("totalSessions")),
+                n(record.get("activeDays")), bool(record.get("limits")), bool(record.get("balance"))))
+
+
+def utilization(record: dict) -> float:
+    values = []
+    for limit in record.get("limits") or []:
+        try: values.append(float(limit.get("percent", 0)))
+        except (TypeError, ValueError): pass
+    balance = record.get("balance") or {}
+    try:
+        funded, remaining = float(balance.get("funded", 0)), float(balance.get("remaining", 0))
+        if funded > 0: values.append(1 - remaining / funded)
+    except (TypeError, ValueError): pass
+    return min(1.0, max(values or [0.0]))
+
+
+def selected_record(items: list[dict]) -> dict | None:
+    visible = [item for item in items if has_data(item)]
+    if not visible: return None
+    try: selected = SELECTED_FILE.read_text().strip()
+    except OSError: selected = ""
+    return next((x for x in visible if str(x.get("id")) == selected),
+                max(visible, key=utilization))
+
+
+def token_count(value) -> str:
+    value = n(value)
+    if value >= 1_000_000_000: return f"{value / 1_000_000_000:.1f}B"
+    if value >= 1_000_000: return f"{value / 1_000_000:.1f}M"
+    if value >= 1_000: return f"{value / 1_000:.1f}K"
+    return str(value)
+
+
+def duration_until(value: str) -> str:
+    if not value: return ""
+    try:
+        target = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+        now = dt.datetime.now(target.tzinfo or dt.timezone.utc)
+        seconds = max(0, int((target - now).total_seconds()))
+        if seconds >= 86400: return f"{seconds // 86400}d {(seconds % 86400) // 3600}h"
+        if seconds >= 3600: return f"{seconds // 3600}h {(seconds % 3600) // 60}m"
+        return f"{max(1, seconds // 60)}m"
+    except (ValueError, TypeError): return ""
+
+
+def record_tooltip(record: dict) -> str:
+    name = html.escape(str(record.get("name") or record.get("id") or "Agent"))
+    tier = html.escape(str(record.get("tierLabel") or "Subscription"))
+    lines = [f"<b>{name}</b>  {tier}"]
+    status = str(record.get("usageStatusText") or "").strip()
+    if status: lines.append(html.escape(status))
+    for limit in record.get("limits") or []:
+        try: percent = round(float(limit.get("percent", 0)) * 100)
+        except (TypeError, ValueError): percent = 0
+        label = html.escape(str(limit.get("label") or limit.get("title") or "Limit"))
+        reset = duration_until(str(limit.get("resetsAt") or ""))
+        lines.append(f"{label}: <b>{percent}%</b>" + (f" · resets in {reset}" if reset else ""))
+    balance = record.get("balance") or {}
+    if balance:
+        lines.append(f"Balance: <b>${float(balance.get('remaining', 0)):.2f}</b>")
+    lines += [f"Today: <b>{token_count(record.get('todayTotalTokens'))}</b> tokens · {n(record.get('todayPrompts'))} prompts",
+              f"All recorded: {n(record.get('totalSessions'))} sessions · {n(record.get('activeDays'))} days",
+              "Left click: dashboard · Right click: launch · Middle click: next"]
+    return "\n".join(lines)
+
+
+def waybar() -> int:
+    item = selected_record(records())
+    if item is None:
+        print(json.dumps({"text": "", "tooltip": "No AI-agent usage recorded", "class": "empty"}))
+        return 0
+    used = utilization(item)
+    css = "critical" if used >= .9 else "warning" if used >= .75 else "active"
+    payload = {"text": GLYPH, "tooltip": record_tooltip(item), "class": [css, str(item.get("id", "agent"))],
+               "percentage": round(used * 100)}
+    print(json.dumps(payload, ensure_ascii=False))
+    return 0
+
+
+def next_provider() -> int:
+    visible = [x for x in records() if has_data(x)]
+    if not visible: return 0
+    visible.sort(key=lambda x: str(x.get("name") or x.get("id")))
+    try: current = SELECTED_FILE.read_text().strip()
+    except OSError: current = ""
+    index = next((i for i, x in enumerate(visible) if x.get("id") == current), -1)
+    chosen = visible[(index + 1) % len(visible)]
+    private_dir(SELECTED_FILE.parent)
+    SELECTED_FILE.write_text(str(chosen["id"]) + "\n")
+    SELECTED_FILE.chmod(0o600)
+    print(chosen["id"])
+    return 0
+
+
+def meter(percent: float, width: int = 18) -> str:
+    percent = max(0.0, min(1.0, percent))
+    full = round(percent * width)
+    return "━" * full + "─" * (width - full)
+
+
+def model_rows(record: dict) -> list[str]:
+    rows = []
+    buckets = []
+    for model, values in (record.get("modelUsage") or {}).items():
+        total = sum(n(values.get(key)) for key in ("inputTokens", "outputTokens", "cacheReadInputTokens", "cacheCreationInputTokens"))
+        buckets.append((total, model))
+    for total, model in sorted(buckets, reverse=True)[:4]:
+        rows.append(f"  {model[:28]:28}  {token_count(total):>7}")
+    return rows
+
+
+def panel_lines(record: dict | None) -> tuple[list[str], dict[int, str]]:
+    lines, actions = [], {}
+    def action(label: str, code: str): actions[len(lines)] = code; lines.append(label)
+    action("▶  Launch default agent", "launch")
+    action("↻  Refresh usage now", "refresh")
+    action("⇄  Next subscription", "next")
+    action("⚙  Agent settings", "settings")
+    lines.append("────────────────────────────────────────")
+    if record is None:
+        lines += ["No Claude, Codex, or Fireworks usage found.", "Run an agent, then choose Refresh usage now."]
+        return lines, actions
+    lines += [f"{record.get('name', record.get('id'))}  ·  {record.get('tierLabel') or 'Subscription'}"]
+    status = str(record.get("usageStatusText") or "").strip()
+    if status: lines.append(f"!  {status}")
+    for limit in record.get("limits") or []:
+        try: fraction = float(limit.get("percent", 0))
+        except (TypeError, ValueError): fraction = 0
+        reset = duration_until(str(limit.get("resetsAt") or ""))
+        label = str(limit.get("label") or limit.get("title") or "Limit")
+        lines += [f"{label}: {round(fraction * 100)}%" + (f" · resets in {reset}" if reset else ""),
+                  f"{meter(fraction)}"]
+    balance = record.get("balance") or {}
+    if balance: lines.append(f"Balance: ${float(balance.get('remaining', 0)):.2f}")
+    lines += ["", f"Today  {token_count(record.get('todayTotalTokens'))} tokens  ·  {n(record.get('todayPrompts'))} prompts",
+              f"Recorded  {n(record.get('totalSessions'))} sessions  ·  {n(record.get('activeDays'))} active days",
+              "", "Tokens by model"] + model_rows(record)
+    return lines, actions
+
+
+def panel() -> int:
+    while True:
+        record = selected_record(records())
+        lines, actions = panel_lines(record)
+        if os.environ.get("OBSIDIAN_AGENT_PANEL_DUMP") == "1":
+            print("\n".join(lines)); return 0
+        forced = os.environ.get("OBSIDIAN_AGENT_PANEL_ACTION", "")
+        if forced:
+            action = forced
+        else:
+            try:
+                result = subprocess.run(["rofi", "-dmenu", "-i", "-p", "AI Agents", "-format", "i",
+                                         "-theme-str", 'window { width: 720px; } listview { lines: 16; fixed-height: false; } entry { placeholder: "Choose an action…"; }',
+                                         "-mesg", "Usage stays local unless a provider collector checks its rate-limit API."],
+                                        input="\n".join(lines) + "\n", text=True, capture_output=True, check=False)
+            except OSError: return 1
+            if result.returncode: return 0
+            try: action = actions.get(int(result.stdout.strip()), "")
+            except ValueError: action = ""
+        if action == "launch": subprocess.Popen(["obsidian-agent", "launch"]); return 0
+        if action == "settings": subprocess.run(["obsidian-agent", "settings"]); return 0
+        if action == "next": next_provider()
+        elif action == "refresh": update(["--force"])
+        else: return 0
+        if forced: return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    sub = parser.add_subparsers(dest="command")
+    update_parser = sub.add_parser("update")
+    update_parser.add_argument("--force", action="store_true")
+    update_parser.add_argument("--limits-only", action="store_true")
+    update_parser.add_argument("providers", nargs="*")
+    sub.add_parser("bar"); sub.add_parser("panel"); sub.add_parser("next")
+    args = parser.parse_args()
+    if args.command in (None, "panel"): return panel()
+    if args.command == "bar": return waybar()
+    if args.command == "next": return next_provider()
+    flags = [flag for flag, enabled in (("--force", args.force), ("--limits-only", args.limits_only)) if enabled]
+    return update(flags, args.providers or None)
+
+if __name__ == "__main__": raise SystemExit(main())
