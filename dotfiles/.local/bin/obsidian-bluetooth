@@ -38,7 +38,9 @@ valid_mac() {
 }
 
 bt_quick() {
-  timeout --foreground 8 bluetoothctl --timeout 7 "$@"
+  # --timeout makes even completed status queries wait that many seconds.
+  # Bound hangs externally while allowing successful commands to exit at once.
+  timeout --foreground 8 bluetoothctl "$@"
 }
 
 # Clicking the Waybar icon twice closes only this script's own Rofi window.
@@ -58,10 +60,17 @@ close_existing_menu() {
 }
 
 rofi_menu() {
-  local output status pid
+  local output status pid lines
+  local -a rows
+  # Size the finite menu before opening: fullscreen Rofi does not recompute
+  # a nested list's natural height after loading rows. Search stays stable.
+  mapfile -t rows
+  lines=${#rows[@]}
+  (( lines > 12 )) && lines=12
   output="$(mktemp "$runtime_dir/obsidian-bluetooth-choice.XXXXXX" 2>/dev/null || mktemp /tmp/obsidian-bluetooth-choice.XXXXXX)" || return 1
   chmod 600 "$output"
-  rofi "$@" >"$output" &
+  printf '%s\n' "${rows[@]}" | rofi -me-select-entry '' -me-accept-entry MousePrimary "$@" \
+    -theme-str "listview { lines: $lines; fixed-height: true; }" >"$output" &
   pid=$!
   printf '%s\n' "$pid" >"$rofi_pid_file"
   wait "$pid"

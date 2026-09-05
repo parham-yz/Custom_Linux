@@ -59,7 +59,8 @@
     "path": ".config/rofi/network.rasi",
     "before": "166d9c3a4d76c9c9f184aa99ef2b7d5a741c4fff084868aff64736af2f35814e",
     "previous": [
-      "4ef5a736f0e50132109237994d017a523a3b65ee42381d86a8e309075a6ad3e8"
+      "4ef5a736f0e50132109237994d017a523a3b65ee42381d86a8e309075a6ad3e8",
+      "8fc28fa64fdfc36769a2b6f7a7d6396fecabdd628484fe297bb381953bdd11d2"
     ]
   },
   {
@@ -195,5 +196,19 @@
   {
     "path": ".local/bin/obsidian-idle-action",
     "before": "6a8bd7681bb3c6b7aa997f8595b92d78564b0faea2ccb6e08a078f35d7bccf7b"
+  },
+  {
+    "path": ".local/bin/obsidian-network",
+    "before": "3acd02847327fa4a62e1014df08ece466649a99fde2a3cf25320ff5d4d8e1bcd",
+    "previous": [
+      "ea98b5913af31c626377edbac4a7650e43f1cc23727e36cff428f6ce79f71b0f"
+    ]
+  },
+  {
+    "path": ".local/bin/obsidian-bluetooth",
+    "before": "19783872ed08b1dd75c61f64e920f28ebdd25768cd0d3493e3f0bc057725daa6",
+    "previous": [
+      "bb6d18104646e16dda7be401d72df60f03d08be3812e924944c81cbfe0cbf257"
+    ]
   }
 ]

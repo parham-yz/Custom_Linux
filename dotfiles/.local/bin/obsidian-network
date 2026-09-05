@@ -38,9 +38,16 @@ if [[ -r "$rofi_pid_file" ]]; then
 fi
 
 rofi_menu() {
-  local output status pid
+  local output status pid lines
+  local -a rows
+  # Size the finite menu before opening: fullscreen Rofi does not recompute
+  # a nested list's natural height after loading rows. Search stays stable.
+  mapfile -t rows
+  lines=${#rows[@]}
+  (( lines > 12 )) && lines=12
   output="$(mktemp "$runtime_dir/obsidian-network-choice.XXXXXX" 2>/dev/null || mktemp /tmp/obsidian-network-choice.XXXXXX)" || return 1
-  rofi "$@" >"$output" &
+  printf '%s\n' "${rows[@]}" | rofi -me-select-entry '' -me-accept-entry MousePrimary "$@" \
+    -theme-str "listview { lines: $lines; fixed-height: true; }" >"$output" &
   pid=$!
   printf '%s\n' "$pid" >"$rofi_pid_file"
   wait "$pid"
