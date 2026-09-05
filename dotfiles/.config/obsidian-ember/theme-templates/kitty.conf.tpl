@@ -1,5 +1,6 @@
 foreground #{{TEXT}}
 background #{{BG}}
+background_opacity {{OPACITY}}
 selection_foreground #{{CONTRAST}}
 selection_background #{{ACCENT2}}
 cursor #{{ACCENT2}}

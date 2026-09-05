@@ -26,12 +26,13 @@ load_palette() {
   [[ "$slug" =~ ^[a-z0-9-]+$ ]] || die "Invalid theme name"
   [[ -f "$themes_root/$slug/palette" ]] || die "Theme '$slug' does not exist"
   # Palettes are installed with this desktop and contain color assignments only.
+  OPACITY="0.92"
   source "$themes_root/$slug/palette"
 }
 
 render() {
   local template="$1" destination="$2" temporary
-  local -a keys=(BG PANEL HOVER BORDER TEXT MUTED ACCENT ACCENT2 DANGER CONTRAST C0 C1 C2 C3 C4 C5 C6 C7 C8 C9 C10 C11 C12 C13 C14 C15)
+  local -a keys=(BG PANEL HOVER BORDER TEXT MUTED ACCENT ACCENT2 DANGER CONTRAST OPACITY C0 C1 C2 C3 C4 C5 C6 C7 C8 C9 C10 C11 C12 C13 C14 C15)
   local -a replacements=()
   local key
 

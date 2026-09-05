@@ -24,6 +24,10 @@ The bar retains its readable text/icon sizes and horizontal widths. Only its ver
 
 ## Repository contents
 
+Four additional minimal themes are available: **Moss Stone**, **Slate Tide**,
+**Clay Linen** (light), and **Plum Ash**. See the [theme previews and installation
+guide](THEMES.md), or open the [interactive palette gallery](themes.html).
+
 ```text
 dotfiles/
   .config/
