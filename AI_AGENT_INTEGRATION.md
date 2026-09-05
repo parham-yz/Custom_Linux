@@ -15,7 +15,7 @@ CLIs; it does not add a model runtime to the operating system.
   `org.obsidian.agent` Kitty window. `a` launches it inside the current terminal.
 - `obsidian-agent prompt "Review this project"` starts with a task while keeping
   the prompt as one safe process argument.
-- A self-hiding Waybar icon opens a themed Rofi usage dashboard. It shows local
+- A themed Rofi usage dashboard shows local
   Claude/Codex/Fireworks usage, plans, available rate limits, daily totals, and
   per-model totals. Data refreshes every 15 minutes. Transcript totals are local;
   authenticated network limit checks are off until the user opts in.
@@ -33,16 +33,17 @@ CLIs; it does not add a model runtime to the operating system.
 | Launch | `obsidian agent launch` or `Super+Shift+Ctrl+A` |
 | Launch inline | `a` |
 | Start with a task | `obsidian agent prompt "…"` |
-| Usage dashboard | click the agent bar icon or `obsidian agent usage panel` |
+| Usage dashboard | `obsidian agent usage panel` |
 | Refresh usage | `obsidian agent usage update --force` |
 | Settings | `obsidian agent settings` |
 | Diagnose a retained core | `obsidian agent crash <pid>` |
-| Toggle crash watcher | OMA › AI Agents › Toggle crash diagnosis |
+| Toggle crash watcher | Hermes icon right-click › Coding agents › Toggle crash diagnosis |
 | Check integration | `obsidian agent doctor` |
 
-The OMA menu also has a top-level **AI Agents** section. In Waybar, left click
-opens usage, right click launches the agent, and middle click changes the shown
-subscription.
+The primary bar icon now opens the [Hermes personal assistant](HERMES_ASSISTANT.md).
+Right-click it and choose **Coding agents** to reach the existing coding controls.
+The coding-agent usage module remains defined for users who want to add
+`custom/agents` back to Waybar's `modules-right` list.
 
 ## Approval and privacy
 

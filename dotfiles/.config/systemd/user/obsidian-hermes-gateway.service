@@ -1,0 +1,16 @@
+[Unit]
+Description=Hermes personal assistant
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/obsidian-hermes gateway
+ExecStop=-/usr/bin/podman stop --ignore --time 15 obsidian-hermes
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+UMask=0077
+
+[Install]
+WantedBy=default.target

@@ -26,7 +26,7 @@ root_menu() {
   local choice
   choice="$(choose ' OMA ' "$(obsidian-theme name) · Enter to open · Esc to close" \
     '󰀻  Applications' \
-    '󱚣  AI agents' \
+    '󱚣  Hermes assistant' \
     '󰄀  Capture' \
     '󰏘  Style' \
     '󰔡  Quick settings' \
@@ -39,7 +39,7 @@ root_menu() {
   case "$choice" in
     *Back) exec "$0" root ;;
     *Applications) rofi -show drun -show-icons ;;
-    *AI\ agents) exec "$0" agents ;;
+    *Hermes\ assistant) obsidian-hermes open ;;
     *Capture) exec "$0" capture ;;
     *Style) exec "$0" style ;;
     *Quick\ settings) exec "$0" toggle ;;

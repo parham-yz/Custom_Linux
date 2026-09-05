@@ -1,0 +1,11 @@
+[Unit]
+Description=Watch Hermes assistant availability
+PartOf=graphical-session.target
+
+[Timer]
+OnStartupSec=30
+OnUnitActiveSec=30
+AccuracySec=2
+
+[Install]
+WantedBy=graphical-session.target

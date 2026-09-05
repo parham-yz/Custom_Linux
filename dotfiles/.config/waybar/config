@@ -20,7 +20,7 @@
   "modules-right": [
     "clock",
     "custom/status",
-    "custom/agents",
+    "custom/hermes",
     "custom/activity",
     "pulseaudio",
     "bluetooth",
@@ -190,5 +190,13 @@
     "tooltip": true,
     "on-click": "obsidian-status open",
     "on-click-right": "obsidian-menu toggle"
+  },
+  "custom/hermes": {
+    "return-type": "json",
+    "exec": "obsidian-hermes bar",
+    "interval": 10,
+    "tooltip": true,
+    "on-click": "obsidian-hermes open",
+    "on-click-right": "obsidian-hermes menu"
   }
 }

@@ -89,12 +89,22 @@ cat manifests/flatpak-installed.tsv
 
 
 
+## Personal assistant
+
+The top-bar Hermes icon opens a small native panel for conversation, reminders,
+and model settings. Click outside or press Escape to close it; the assistant stays
+running. A status dot and independent health notifications show when it stops.
+Press `Super+Ctrl+Shift+H`, or choose **OMA › Hermes assistant**. Email and calendar
+connections can be configured later. See [HERMES_ASSISTANT.md](HERMES_ASSISTANT.md)
+for installation, controls, privacy, and verification.
+
 ## Native AI coding agent
 
 This desktop now includes an Omarchy 4-style native agent layer. It has a default
 agent picker, lazy per-user installs, a dedicated launch shortcut, Waybar usage
 status, a Rofi dashboard, OS-aware skills, and private click-to-diagnose crash
-handoff. Press `Super+Shift+Ctrl+A`, open **OMA › AI Agents**, or run:
+handoff. Press `Super+Shift+Ctrl+A`, choose **Coding agents** from the Hermes
+icon's right-click menu, or run:
 
 ```bash
 obsidian agent pick
@@ -165,10 +175,11 @@ The configuration is tailored to Fedora Asahi Remix on Apple Silicon and a 2560�
 
 ```bash
 ./scripts/test-agent-integration.sh
+/usr/bin/python3 scripts/test-hermes-assistant.py
 ./scripts/test-bluetooth-integration.sh
 python3 scripts/test-desktop-ui.py
 python3 scripts/test-minimal-themes.py
 ./scripts/verify-snapshot.sh
 ```
 
-The tests exercise agent, Bluetooth, desktop interactions, and theme rendering in isolation. The final command checks file hashes and scans snapshot text for common secret patterns. The authoritative integrity list is `SHA256SUMS`.
+The tests exercise coding agents, the personal assistant, Bluetooth, desktop interactions, and theme rendering in isolation. The final command checks file hashes and scans snapshot text for common secret patterns. The authoritative integrity list is `SHA256SUMS`.

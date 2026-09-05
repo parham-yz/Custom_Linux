@@ -1,0 +1,8 @@
+[Unit]
+Description=Check Hermes assistant health independently
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/obsidian-hermes health
+TimeoutStartSec=15
+UMask=0077

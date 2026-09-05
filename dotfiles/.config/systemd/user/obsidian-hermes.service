@@ -1,0 +1,15 @@
+[Unit]
+Description=Hermes desktop space and notifications
+Wants=obsidian-hermes-gateway.service
+After=obsidian-hermes-gateway.service
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/obsidian-hermes serve
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+[Install]
+WantedBy=graphical-session.target

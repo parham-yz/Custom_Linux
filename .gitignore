@@ -8,3 +8,10 @@ __pycache__/
 dotfiles/.config/obsidian-agent/
 dotfiles/.local/state/obsidian-agent/
 dotfiles/.cache/obsidian-agent/
+
+# Hermes credentials, conversations, memory, and browser state stay on this host.
+dotfiles/.config/obsidian-hermes/
+dotfiles/.local/state/obsidian-hermes/
+dotfiles/.local/share/obsidian-hermes/hermes/
+dotfiles/.local/share/obsidian-hermes/workspace/
+dotfiles/.local/share/obsidian-hermes/browser/

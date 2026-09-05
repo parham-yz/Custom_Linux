@@ -136,8 +136,8 @@ assert_eq "$(wc -l <"$TMP/notify.log")" 1 'filters crash events to the current u
 assert_has "$(cat "$TMP/notify.log")" 'Process crashed: fixture' 'offers AI diagnosis from crash metadata'
 
 # Static desktop contracts.
-jq -e '."custom/agents"["return-type"] == "json" and (."modules-right" | index("custom/agents"))' "$ROOT/dotfiles/.config/waybar/config" >/dev/null
-pass 'registers Waybar module'
+jq -e '."custom/agents"["return-type"] == "json" and ."custom/hermes"["return-type"] == "json" and (."modules-right" | index("custom/hermes"))' "$ROOT/dotfiles/.config/waybar/config" >/dev/null
+pass 'keeps coding-agent controls and registers the Hermes bar entry'
 grep -F 'SUPER + SHIFT + CTRL + A' "$ROOT/dotfiles/.local/bin/obsidian-keybindings" >/dev/null
 grep -F '$mainMod SHIFT CTRL, A' "$ROOT/dotfiles/.config/hypr/hyprland.conf" >/dev/null
 pass 'documents and binds agent shortcut'

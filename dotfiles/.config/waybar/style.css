@@ -17,7 +17,7 @@ window#waybar { background: transparent; color: @text; }
   padding: 0 4px;
 }
 #custom-launcher, #workspaces, #window, #custom-weather, #clock,
-#custom-updates, #custom-agents, #custom-status, #custom-activity,
+#custom-updates, #custom-hermes, #custom-agents, #custom-status, #custom-activity,
 #pulseaudio, #bluetooth, #network, #backlight, #battery, #tray {
   padding: 0 8px;
   margin: 2px 0;
@@ -27,7 +27,7 @@ window#waybar { background: transparent; color: @text; }
 }
 #custom-launcher { color: @accent; font-weight: 700; padding: 0 11px; }
 #custom-launcher:hover, #custom-weather:hover, #custom-updates:hover,
-#custom-agents:hover, #custom-status:hover, #custom-activity:hover,
+#custom-hermes:hover, #custom-agents:hover, #custom-status:hover, #custom-activity:hover,
 #clock:hover, #pulseaudio:hover, #bluetooth:hover, #network:hover,
 #backlight:hover, #battery:hover { background: @hover; }
 #workspaces { padding: 0 2px; }
@@ -63,3 +63,7 @@ window#waybar.empty #window, #window.empty,
 #battery.critical:not(.charging) { color: @danger; font-weight: 700; }
  tooltip { background: @panel; color: @text; border: 1px solid @border; border-radius: 6px; }
  tooltip label { padding: 8px; }
+
+#custom-hermes { color: @accent; }
+#custom-hermes.attention { background: @hover; font-weight: 700; }
+#custom-hermes.offline { color: @danger; }
