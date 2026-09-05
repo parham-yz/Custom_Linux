@@ -20,8 +20,8 @@ window spacing, font sizes, and keyboard shortcuts.
 Colors follow the selection across Hyprland borders, Waybar, Rofi menus, Kitty,
 Mako notifications, btop, and Starship. Kitty uses an opaque background for these
 four themes. Existing themes retain their previous 0.92 terminal opacity.
-New Kitty windows load the selected palette; already-open terminals may need
-their configuration reloaded with Kitty's `Ctrl+Shift+F5` shortcut.
+Theme changes also reload the palette in running Kitty windows using its
+documented configuration-reload signal. Existing shells remain open.
 Apps with their own theme systems, such as browsers and Orca, retain their own
 appearance settings.
 
@@ -63,8 +63,8 @@ Primary text contrast against the solid background ranges from **9.83:1 to
 13.31:1**. Tested secondary text, selected labels, and accent-fill text reach
 at least **4.5:1**. The test also checks terminal colors 1–15 on the terminal
 background. ANSI color 0 remains the conventional dark/base slot. These are
-color-pair checks, not a claim of complete desktop accessibility. Translucent
-menus and the bar can vary with the wallpaper behind them.
+color-pair checks, not a claim of complete desktop accessibility. Menus and the
+bar use opaque surfaces to keep their text contrast independent of wallpaper.
 
 ```bash
 python3 scripts/test-minimal-themes.py

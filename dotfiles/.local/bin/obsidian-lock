@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v swaylock >/dev/null; then
+  notify-send 'Lock unavailable' 'Install swaylock to enable screen locking.'
+  exit 1
+fi
+bg="$(obsidian-theme color BG)"
+panel="$(obsidian-theme color PANEL)"
+text="$(obsidian-theme color TEXT)"
+border="$(obsidian-theme color BORDER)"
+accent="$(obsidian-theme color ACCENT)"
+danger="$(obsidian-theme color DANGER)"
+exec swaylock -f --color "$bg" --font 'JetBrainsMono Nerd Font' --font-size 16 \
+  --indicator-radius 72 --indicator-thickness 4 --line-uses-inside \
+  --inside-color "$panel" --inside-ver-color "$panel" --inside-wrong-color "$panel" \
+  --inside-clear-color "$panel" --inside-caps-lock-color "$panel" \
+  --ring-color "$border" --ring-ver-color "$accent" --ring-wrong-color "$danger" \
+  --ring-clear-color "$accent" --ring-caps-lock-color "$accent" \
+  --key-hl-color "$accent" --bs-hl-color "$danger" --separator-color "$panel" \
+  --text-color "$text" --text-ver-color "$text" --text-wrong-color "$text" \
+  --text-clear-color "$text" --text-caps-lock-color "$text" \
+  --layout-bg-color "$panel" --layout-border-color "$border" --layout-text-color "$text"

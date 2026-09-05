@@ -1,0 +1,199 @@
+[
+  {
+    "path": ".config/obsidian-ember/theme-templates/btop.theme.tpl",
+    "before": "48ded0ff1f4d686291dca167b3295ff6c7bed8b40292f955d0b20142cf0327fe",
+    "previous": [
+      "983bb1a71e43845f92a3bf240d857207e6ec03d29b726ddab22862d977770b8e"
+    ]
+  },
+  {
+    "path": ".config/obsidian-ember/theme-templates/mako.conf.tpl",
+    "before": "7082947dc8568a71dc7066a6867ac49f54f39cd7c3ecf428dded9855d8b9a9de",
+    "previous": [
+      "509a782c4f4a9a9c242e96054e65168103cfc3ba565b2915377bcea491ecdf29"
+    ]
+  },
+  {
+    "path": ".config/obsidian-ember/theme-templates/rofi.rasi.tpl",
+    "before": "71c0ec75044a619eda2854cb2c71f1ea5953f70f8b278ba04367fb1c45c7dc62",
+    "previous": [
+      "061db3785ca3110a20ec3d40284c35089822c82349d112926359415dc04cf7dc"
+    ]
+  },
+  {
+    "path": ".config/obsidian-ember/theme-templates/waybar.css.tpl",
+    "before": "9b7d610c08181b4ca349917483c081b3d73acfa55dbdddf36578ccca7e725f35",
+    "previous": [
+      "9ec29f09f197fa7f3badc206108623c68b8ab694797065ea330a6a06d8403d0d"
+    ]
+  },
+  {
+    "path": ".config/obsidian-ember/themes/ivory-dawn/palette",
+    "before": "8aefa21753f77c0c5ae41d72992cb23b1f93c7035306d624525a6a16b4505e49",
+    "previous": [
+      "a8cb7fad3f525bd73f3691de4df8bbaddb4c3030a57d0dc74a9e53c71ae76249"
+    ]
+  },
+  {
+    "path": ".config/obsidian-ember/themes/obsidian-ember/palette",
+    "before": "5c240ce954c018eca402208759aa4bbf25fd21c014aa572ad246326c156b59c5",
+    "previous": [
+      "71e04c988ec047825d2ad9d3a431adf30b3bfcdd2f1d1fd31066a434fb79ff9b"
+    ]
+  },
+  {
+    "path": ".config/obsidian-ember/themes/tokyo-night/palette",
+    "before": "d9ef724843392bf3d7ae87bad62c235a2e0035060b932b92894a5cc15c1f0197",
+    "previous": [
+      "5845f36fd71756789d53934a5b29dfc85c768e2c70f2b9e67d499c0bf3b82123"
+    ]
+  },
+  {
+    "path": ".config/rofi/config.rasi",
+    "before": "d2828b256da1dda70dec2e1d24cc871b2b5de25ff652c20119628e5e5156e517",
+    "previous": [
+      "6bb32ccddc08494ee6650010c342654a5f72fac956808691212d5c01ce319926"
+    ]
+  },
+  {
+    "path": ".config/rofi/network.rasi",
+    "before": "166d9c3a4d76c9c9f184aa99ef2b7d5a741c4fff084868aff64736af2f35814e",
+    "previous": [
+      "4ef5a736f0e50132109237994d017a523a3b65ee42381d86a8e309075a6ad3e8"
+    ]
+  },
+  {
+    "path": ".config/waybar/config",
+    "before": "21ad22f82709c9979bd14dc9f9cbf4b9f72abae8ce30bbe701178a581edd7566",
+    "previous": [
+      "6bd1e7b9b781bbf02425540215ce5f63a20e67ac8ade7e2f8b4f956aeaeb3786"
+    ]
+  },
+  {
+    "path": ".config/waybar/style.css",
+    "before": "f71ed00444305b27d2de25aa9fba2e5f11e0e514f6d70c7173f16863b8d37b8e",
+    "previous": [
+      "3430560443ee4fd512757fbe4633f10c45ea8f86b420f5b51e2327be811680eb"
+    ]
+  },
+  {
+    "path": ".local/bin/obsidian-agent",
+    "before": "b11ce70446a39c4516c5aaa1f4d4039709e2cedd722afca7a7cc6ff9e891efff",
+    "previous": [
+      "0acb11e94529c9fe27b66db18741b0f502daefeb553d7221560652245f34c2dc"
+    ]
+  },
+  {
+    "path": ".local/bin/obsidian-agent-usage",
+    "before": "6d17bc897c84cc7a4421a9c406df2791be8bd7fb9d29e2534322b8884ea2ac05",
+    "previous": [
+      "f55d4595ef96ff571eb6e1b6c6faa66a82d86bd1b7de6b6d54ae43c7cd821c3a"
+    ]
+  },
+  {
+    "path": ".local/bin/obsidian-capture",
+    "before": "200165e0d12c7bc7d9b3e067fcd76a14922e764a24f992f5c712e174f6d516c7",
+    "previous": [
+      "a7bebcd29b03b5f9731f6b41c6a4d6cc55e280f5683e4bdda48bbe5bc5551701"
+    ]
+  },
+  {
+    "path": ".local/bin/obsidian-clipboard",
+    "before": "39a042bf9ac6234bd3e356424f8650f02b8516c6a7f1b784f3f0ad179a2e56d0",
+    "previous": [
+      "8049540441916b9e8e81c417942ac36876bbdd403bfbeb2e283d2aaf92d7c3dd"
+    ]
+  },
+  {
+    "path": ".local/bin/obsidian-emoji",
+    "before": "963ccb60fcd9c513dbd7431dd43bd2c05dcc73351bdfc7870f23de7b74613a41",
+    "previous": [
+      "6ff861a5a9a8098cdd59c71eb31e3e89bfd155d6b611a63249c738df536d9329"
+    ]
+  },
+  {
+    "path": ".local/bin/obsidian-install-wf-recorder",
+    "before": "4b4c4acde706bfa55282ba8d83439abc0f6d6695128d97b20e7d0295cdb8e1ef",
+    "previous": [
+      "f19dfc7456c0beceae3f27835243ebb22507f3d9b1439e0816a4f7bbcdb10462"
+    ]
+  },
+  {
+    "path": ".local/bin/obsidian-keybindings",
+    "before": "172c496d7169293bc7ae5afa42b8a154e4e9ee456adff0f90996dea6e9e2434c",
+    "previous": [
+      "8a8760fee9bf99744fee5154e038dff8d4dd5c52c234364d6b84da5e19028677"
+    ]
+  },
+  {
+    "path": ".local/bin/obsidian-menu",
+    "before": "b99e595816b9cec9ee49a43798dfeb65b60dcdfdcb3a77ec4888356001b5f659",
+    "previous": [
+      "670b9b70a414c1d6bd503b6e89f5401fcd5376f9af981dc866126538f30c9793"
+    ]
+  },
+  {
+    "path": ".local/bin/obsidian-osd",
+    "before": "16ca6cb2cbe957e9d1445a96f4b7834f974d6812fdd1686a7f2db189657166f0",
+    "previous": [
+      "0928a13f410f50188dfb994f7b3cc13b607c5c329cb011ef44b661677342ccd9"
+    ]
+  },
+  {
+    "path": ".local/bin/obsidian-record",
+    "before": "7e342535c4330b7999b574def08f2a364b07e87e5350452c8787438d4614e85e",
+    "previous": [
+      "dc4b0fd7cc71d5013ac030838d3efd6f11077d4becf0b4bff1344d43d0b232d2"
+    ]
+  },
+  {
+    "path": ".local/bin/obsidian-reminder",
+    "before": "a06dbec2f9b46f00f23dff4fddd592d698d87ae19a50bd128175ff41de645831",
+    "previous": [
+      "a5fd770f35c8e0a10f7c35d7595114de13e8fa6f9b2d94168b20c65ac7cf7c77"
+    ]
+  },
+  {
+    "path": ".local/bin/obsidian-status",
+    "before": null,
+    "previous": [
+      "a80065fadce0f662f2f2d099a9c5d1a4247a20685a92ea3bf81b2f09800c20a1"
+    ]
+  },
+  {
+    "path": ".local/bin/obsidian-theme",
+    "before": "5e9929fad01d3247572c9f52a760121e384a0a29f0b6a64f13a2e83fc39f39e8",
+    "previous": [
+      "c991f00f0915b3a20c22639ca313d9c7b44d1430bde7c035c736a18fcd150ce7"
+    ]
+  },
+  {
+    "path": ".local/bin/obsidian-toggle",
+    "before": "c92f45b4ce2e2eadbc1e6fd7bfc587a5db5a19f09ce4af6c0e6a11b9897b3e2b",
+    "previous": [
+      "b9a73f1245d61df200bfc7bdac81becc080d33ca9b5483a0a1a039055483a877"
+    ]
+  },
+  {
+    "path": ".local/bin/obsidian-updates",
+    "before": "a5db80a224f4ea154eb9c29db059fd1e2648efb318706022c21c795aac573189",
+    "previous": [
+      "8f0d2c994b8e697f6cd87bbefe9605236c040bcc09033c000363ea397ce0520d"
+    ]
+  },
+  {
+    "path": ".local/bin/obsidian-weather",
+    "before": "6e84eb0e54fe18340d30b75d434a4bcfe41cb078bed493bdcba928fa935d86da",
+    "previous": [
+      "ef8cda5eeddd69303c2038911bbdddfab36f4bc3086d787697cafb97c81f9e0d"
+    ]
+  },
+  {
+    "path": ".local/bin/obsidian-lock",
+    "before": null
+  },
+  {
+    "path": ".local/bin/obsidian-idle-action",
+    "before": "6a8bd7681bb3c6b7aa997f8595b92d78564b0faea2ccb6e08a078f35d7bccf7b"
+  }
+]

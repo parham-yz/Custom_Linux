@@ -1,142 +1,65 @@
 @import url("../obsidian-ember/current/waybar.css");
 
 * {
-  border: 0;
+  border: none;
   border-radius: 0;
   min-height: 0;
   font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 window#waybar { background: transparent; color: @text; }
-
-#custom-launcher,
-#workspaces,
-#window,
-#custom-weather,
-#clock,
-#custom-updates,
-#custom-agents,
-#custom-activity,
-#pulseaudio,
-#bluetooth,
-#network,
-#backlight,
-#battery,
-#tray {
+.modules-left, .modules-right {
   background: @bg;
   border: 1px solid @border;
   border-radius: 6px;
-  padding: 0 11px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  padding: 0 4px;
 }
-
-#custom-launcher {
-  color: @contrast;
-  background: @accent;
-  border-color: @accent2;
-  font-weight: 800;
-  letter-spacing: 0;
-  padding-left: 15px;
-  padding-right: 15px;
+#custom-launcher, #workspaces, #window, #custom-weather, #clock,
+#custom-updates, #custom-agents, #custom-status, #custom-activity,
+#pulseaudio, #bluetooth, #network, #backlight, #battery, #tray {
+  padding: 0 8px;
+  margin: 2px 0;
+  border-radius: 4px;
+  background: transparent;
+  color: @text;
 }
-
-#workspaces { padding: 0 5px; }
+#custom-launcher { color: @accent; font-weight: 700; padding: 0 11px; }
+#custom-launcher:hover, #custom-weather:hover, #custom-updates:hover,
+#custom-agents:hover, #custom-status:hover, #custom-activity:hover,
+#clock:hover, #pulseaudio:hover, #bluetooth:hover, #network:hover,
+#backlight:hover, #battery:hover { background: @hover; }
+#workspaces { padding: 0 2px; }
 #workspaces button {
   color: @muted;
   background: transparent;
-  border-radius: 8px;
-  padding: 0 7px;
-  transition: all 160ms ease;
+  border-radius: 4px;
+  padding: 0 6px;
+  margin: 0 1px;
+  box-shadow: none;
+  text-shadow: none;
+  transition: background-color 120ms ease;
 }
-#workspaces button.active { color: @accent2; background: @hover; }
+#workspaces button.active { color: @accent; background: @hover; }
 #workspaces button.urgent { color: @danger; }
 #workspaces button:hover { color: @text; background: @hover; }
-
-#window { color: @muted; }
-#window.empty { background: transparent; border-color: transparent; box-shadow: none; }
-window#waybar.empty #window {
-  min-width: 0;
-  padding: 0;
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-}
-#custom-notch {
-  min-width: 176px;
-  background: transparent;
-}
-#clock { color: @accent2; font-weight: 700; }
-#custom-weather { color: @accent2; }
-#custom-updates { color: @accent; }
-#custom-agents { color: @muted; padding: 0 12px; }
-#custom-agents.active { color: @accent2; }
-#custom-agents.warning { color: @accent; }
-#custom-agents.critical { color: @danger; }
-#custom-agents.empty {
-  min-width: 0;
-  padding: 0;
-  margin: 0;
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-}
-#custom-updates.current {
-  min-width: 0;
-  padding: 0;
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-}
-#custom-activity { color: @muted; padding: 0 12px; }
-#bluetooth, #network { font-size: 14px; padding: 0 13px; }
-#bluetooth.on,
-#bluetooth.connected,
-#bluetooth.discovering,
-#bluetooth.pairable,
-#network.wifi { color: @accent2; }
+#window, #custom-weather, #custom-activity, #custom-agents { color: @muted; }
+window#waybar.empty #window, #window.empty,
+#custom-updates.current, #custom-weather.empty, #custom-agents.empty,
+#custom-status.empty { min-width: 0; padding: 0; margin: 0; background: transparent; }
+#custom-notch { min-width: 176px; background: transparent; }
+#clock { font-weight: 600; }
+#custom-updates.available, #custom-agents.warning, #custom-status.active { color: @accent; }
+#custom-agents.critical, #custom-status.recording { color: @danger; font-weight: 700; }
+#custom-updates.error { color: @muted; }
+#bluetooth, #network { font-size: 14px; }
+#bluetooth.on, #bluetooth.connected, #network.wifi { color: @text; }
 #bluetooth.discovering { color: @accent; }
-#bluetooth:hover, #network:hover { background: @hover; border-color: @accent; }
-#pulseaudio.muted,
-#bluetooth.disabled,
-#bluetooth.off,
-#bluetooth.no-controller,
-#network.disconnected,
-#network.disabled { color: @danger; }
+#pulseaudio.muted, #bluetooth.disabled, #bluetooth.off, #bluetooth.no-controller,
+#network.disconnected, #network.disabled { color: @muted; }
 #battery.charging, #battery.plugged { color: @accent; }
 #battery.warning:not(.charging) { color: @accent2; }
-#battery.critical:not(.charging) { color: @danger; }
-
-tooltip {
-  background: @panel;
-  color: @text;
-  border: 1px solid @border;
-  border-radius: 10px;
-}
-tooltip label { padding: 6px; }
-
-/* Compact only the vertical dimension; preserve text/icon sizes and widths. */
-window#waybar,
-window#waybar > box,
-#custom-launcher,
-#workspaces,
-#window,
-#custom-weather,
-#clock,
-#custom-updates,
-#custom-agents,
-#custom-activity,
-#pulseaudio,
-#bluetooth,
-#network,
-#backlight,
-#battery,
-#tray,
-#workspaces button {
-  min-height: 0;
-  margin-top: 0;
-  margin-bottom: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-}
+#battery.critical:not(.charging) { color: @danger; font-weight: 700; }
+ tooltip { background: @panel; color: @text; border: 1px solid @border; border-radius: 6px; }
+ tooltip label { padding: 8px; }

@@ -22,35 +22,36 @@ case "${1:-}" in
   volume-up)
     wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ "${2:-5}%+"
     value="$(volume_value)"
-    notify-send -h string:x-canonical-private-synchronous:obsidian-volume -h "int:value:$value" 'Volume' "$value%"
+    notify-send -a 'Obsidian OSD' -h string:x-canonical-private-synchronous:obsidian-volume -h "int:value:$value" 'Volume' "$value%"
     ;;
   volume-down)
     wpctl set-volume @DEFAULT_AUDIO_SINK@ "${2:-5}%-"
     value="$(volume_value)"
-    notify-send -h string:x-canonical-private-synchronous:obsidian-volume -h "int:value:$value" 'Volume' "$value%"
+    notify-send -a 'Obsidian OSD' -h string:x-canonical-private-synchronous:obsidian-volume -h "int:value:$value" 'Volume' "$value%"
     ;;
   volume-mute)
     wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
     status="$(wpctl get-volume @DEFAULT_AUDIO_SINK@)"
-    notify-send -h string:x-canonical-private-synchronous:obsidian-volume 'Volume' "$status"
+    if [[ "$status" == *MUTED* ]]; then message='Muted'; else message="$(volume_value)%"; fi
+    notify-send -a 'Obsidian OSD' -h string:x-canonical-private-synchronous:obsidian-volume 'Volume' "$message"
     ;;
   brightness-up)
     pause_auto_brightness
     brightnessctl -d "$backlight_device" set "${2:-5}%+" >/dev/null
     value="$(brightness_value)"
-    notify-send -h string:x-canonical-private-synchronous:obsidian-brightness -h "int:value:$value" 'Brightness' "$value%"
+    notify-send -a 'Obsidian OSD' -h string:x-canonical-private-synchronous:obsidian-brightness -h "int:value:$value" 'Brightness' "$value%"
     ;;
   brightness-down)
     pause_auto_brightness
     brightnessctl -d "$backlight_device" set "${2:-5}%-" >/dev/null
     value="$(brightness_value)"
-    notify-send -h string:x-canonical-private-synchronous:obsidian-brightness -h "int:value:$value" 'Brightness' "$value%"
+    notify-send -a 'Obsidian OSD' -h string:x-canonical-private-synchronous:obsidian-brightness -h "int:value:$value" 'Brightness' "$value%"
     ;;
   brightness-set)
     pause_auto_brightness
     brightnessctl -d "$backlight_device" set "${2:?brightness required}" >/dev/null
     value="$(brightness_value)"
-    notify-send -h string:x-canonical-private-synchronous:obsidian-brightness -h "int:value:$value" 'Brightness' "$value%"
+    notify-send -a 'Obsidian OSD' -h string:x-canonical-private-synchronous:obsidian-brightness -h "int:value:$value" 'Brightness' "$value%"
     ;;
   *) printf 'Usage: obsidian-osd {volume-up|volume-down|volume-mute|brightness-up|brightness-down|brightness-set} [amount]\n' >&2; exit 2 ;;
 esac

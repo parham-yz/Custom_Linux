@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+"""Read quick-setting state and show persistent recording/quiet-mode feedback."""
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+STATE = Path(os.environ.get('XDG_STATE_HOME', Path.home() / '.local/state')) / 'obsidian-ember'
+
+
+def command(*args):
+    try:
+        result = subprocess.run(args, capture_output=True, text=True, timeout=2)
+        return result.stdout.strip() if result.returncode == 0 else ''
+    except (OSError, subprocess.TimeoutExpired):
+        return ''
+
+
+def running(path, name):
+    try:
+        pid = path.read_text().strip()
+        if not pid.isdigit():
+            return False
+        cmd = (Path('/proc') / pid / 'cmdline').read_bytes().split(b'\0')
+        return any(Path(os.fsdecode(arg)).name == name for arg in cmd[:2] if arg)
+    except OSError:
+        return False
+
+
+def states():
+    modes = command('makoctl', 'mode').splitlines()
+    profile = command('busctl', '--system', 'get-property', 'net.hadess.PowerProfiles',
+                      '/net/hadess/PowerProfiles', 'net.hadess.PowerProfiles', 'ActiveProfile')
+    brightness = command('systemctl', '--user', 'is-active', 'obsidian-auto-brightness.service')
+    return {
+        'dnd': 'on' if 'do-not-disturb' in modes else 'off' if modes else 'unavailable',
+        'awake': 'on' if running(STATE / 'toggles/inhibit.pid', 'systemd-inhibit') else 'off',
+        'nightlight': 'on' if running(STATE / 'toggles/nightlight.pid', 'wlsunset') else 'off',
+        'power': 'on' if 'power-saver' in profile else 'off' if profile else 'unavailable',
+        'brightness': 'off' if (STATE / 'auto-brightness/disabled').exists() else 'on' if brightness == 'active' else 'unavailable',
+    }
+
+
+def bar():
+    recording = command('obsidian-record', 'status')
+    modes = command('makoctl', 'mode').splitlines()
+    quiet = 'do-not-disturb' in modes
+    awake = running(STATE / 'toggles/inhibit.pid', 'systemd-inhibit')
+    text, details = [], []
+    if recording:
+        text.append('● REC')
+        details.append('Screen recording is active. Click to stop or view options.')
+    if quiet:
+        text.append('󰂛')
+        details.append('Do not disturb is on.')
+    if awake:
+        text.append('󰒲')
+        details.append('Keep awake is on.')
+    if text:
+        details.append('Right click: quick settings')
+    print(json.dumps({'text': ' '.join(text), 'tooltip': '\n'.join(details),
+                      'class': 'recording' if recording else 'active' if text else 'empty'}))
+
+
+if __name__ == '__main__':
+    action = sys.argv[1] if len(sys.argv) > 1 else 'bar'
+    if action == 'states':
+        print(json.dumps(states()))
+    elif action == 'open':
+        args = ['obsidian-record', 'menu'] if command('obsidian-record', 'status') else ['obsidian-menu', 'toggle']
+        raise SystemExit(subprocess.call(args))
+    elif action == 'bar':
+        bar()
+    else:
+        raise SystemExit('Usage: obsidian-status {bar|states|open}')

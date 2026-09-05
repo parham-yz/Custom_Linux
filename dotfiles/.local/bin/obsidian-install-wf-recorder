@@ -12,5 +12,17 @@ mkdir -p "$temporary/extracted"
   cd "$temporary/extracted"
   rpm2cpio "$rpm_path" | cpio -idm
 )
-install -D -m 0755 "$temporary/extracted/usr/bin/wf-recorder" "$HOME/.local/bin/wf-recorder"
+candidate="$temporary/extracted/usr/bin/wf-recorder"
+if ldd "$candidate" | grep -q 'not found'; then
+  printf 'Recorder dependencies are missing; the existing binary was not changed.\n' >&2
+  exit 1
+fi
+"$candidate" --help >/dev/null
+if [[ -f "$HOME/.local/bin/wf-recorder" ]]; then
+  backup="$HOME/.local/state/custom-linux-backups/wf-recorder-$(date +%Y%m%d_%H%M%S)"
+  mkdir -p "$backup"
+  cp -p "$HOME/.local/bin/wf-recorder" "$backup/"
+  printf 'Previous recorder: %s\n' "$backup/wf-recorder"
+fi
+install -D -m 0755 "$candidate" "$HOME/.local/bin/wf-recorder"
 printf 'Installed Fedora wf-recorder to %s\n' "$HOME/.local/bin/wf-recorder"

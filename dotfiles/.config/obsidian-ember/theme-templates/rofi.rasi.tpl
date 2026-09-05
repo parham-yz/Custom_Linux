@@ -1,6 +1,6 @@
 * {
-  bg: #{{BG}}f2;
-  panel: #{{PANEL}}fa;
+  bg: #{{BG}}ff;
+  panel: #{{PANEL}}ff;
   selected: #{{HOVER}}ff;
   border: #{{BORDER}}88;
   fg: #{{TEXT}}ff;

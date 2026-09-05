@@ -281,10 +281,12 @@ def panel() -> int:
             action = forced
         else:
             try:
-                result = subprocess.run(["rofi", "-dmenu", "-i", "-p", "AI Agents", "-format", "i",
-                                         "-theme-str", 'window { width: 720px; } listview { lines: 16; fixed-height: false; } entry { placeholder: "Choose an action…"; }',
-                                         "-mesg", "Usage stays local unless a provider collector checks its rate-limit API."],
-                                        input="\n".join(lines) + "\n", text=True, capture_output=True, check=False)
+                summary = html.escape("\n".join(lines[len(actions) + 1:]))
+                action_rows = [lines[index] for index in actions]
+                result = subprocess.run(["rofi", "-dmenu", "-i", "-no-custom", "-no-sort", "-p", "AI Agents", "-format", "i",
+                                         "-theme-str", 'window { width: 720px; } listview { lines: 4; fixed-height: false; } entry { placeholder: "Choose an action…"; } textbox { markup: true; }',
+                                         "-mesg", summary],
+                                        input="\n".join(action_rows) + "\n", text=True, capture_output=True, check=False)
             except OSError: return 1
             if result.returncode: return 0
             try: action = actions.get(int(result.stdout.strip()), "")

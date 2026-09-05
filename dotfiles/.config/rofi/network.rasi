@@ -10,15 +10,15 @@
 }
 
 window {
-  width: 500px;
+  width: 560px;
   location: northeast;
   anchor: northeast;
   x-offset: -10px;
-  y-offset: 57px;
+  y-offset: 43px;
   background-color: @bg;
   border: 1px;
   border-color: @border;
-  border-radius: 16px;
+  border-radius: 8px;
 }
 
 mainbox {
@@ -29,7 +29,7 @@ mainbox {
 inputbar {
   children: [prompt, entry];
   background-color: @panel;
-  border-radius: 11px;
+  border-radius: 5px;
   padding: 12px 13px;
 }
 
@@ -54,16 +54,16 @@ textbox {
 }
 
 listview {
-  lines: 15;
+  lines: 12;
   columns: 1;
   fixed-height: false;
-  scrollbar: false;
-  spacing: 4px;
+  scrollbar: true;
+  spacing: 3px;
 }
 
 element {
   padding: 11px 12px;
-  border-radius: 10px;
+  border-radius: 4px;
 }
 
 element selected {
@@ -73,4 +73,7 @@ element selected {
 
 element-text {
   vertical-align: 0.5;
+  text-color: inherit;
 }
+
+scrollbar { width: 3px; handle-width: 3px; handle-color: @muted; background-color: @panel; }

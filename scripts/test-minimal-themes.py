@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import tempfile
 import tomllib
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('build', ROOT / 'scripts/build-minimal-themes.py')
@@ -26,6 +27,12 @@ def contrast(a, b):
 
 
 def main():
+    for path in (ROOT / 'dotfiles/.config/obsidian-ember/themes').glob('*/palette'):
+        p = dict(re.findall(r'^(\w+)="([^"]+)"', path.read_text(), re.M))
+        for fg, bg in [('TEXT', 'BG'), ('TEXT', 'PANEL'), ('MUTED', 'PANEL'),
+                       ('MUTED', 'HOVER'), ('ACCENT', 'HOVER'), ('CONTRAST', 'ACCENT'),
+                       ('CONTRAST', 'ACCENT2')]:
+            assert contrast(p[fg], p[bg]) >= 4.5, (path.parent.name, fg, bg, contrast(p[fg], p[bg]))
     for row in build.PALETTES:
         p = build.palette(row)
         checks = [('TEXT', 'BG'), ('TEXT', 'PANEL'), ('MUTED', 'BG'),
@@ -44,7 +51,7 @@ def main():
         shutil.copytree(ROOT / 'dotfiles/.config/obsidian-ember/themes', config / 'themes')
         mock = home / 'bin'
         mock.mkdir()
-        for cmd in ('notify-send', 'pkill', 'pgrep', 'hyprctl', 'makoctl'):
+        for cmd in ('notify-send', 'pkill', 'pgrep', 'hyprctl', 'makoctl', 'obsidian-toggle'):
             path = mock / cmd
             path.write_text('#!/bin/sh\nexit 0\n')
             path.chmod(0o755)

@@ -55,12 +55,13 @@ background_files() {
 }
 
 apply_background() {
-  local wallpaper="$1"
+  local wallpaper="$1" quoted
   [[ -f "$wallpaper" ]] || die "Wallpaper not found"
   mkdir -p "$state_root"
   printf '%s\n' "$wallpaper" > "$state_root/current-wallpaper"
   pkill -x swaybg 2>/dev/null || true
-  hyprctl dispatch exec "swaybg -i $wallpaper -m fill" >/dev/null 2>&1 || true
+  printf -v quoted '%q' "$wallpaper"
+  hyprctl dispatch exec "swaybg -i $quoted -m fill" >/dev/null 2>&1 || true
 }
 
 set_theme() {
@@ -84,18 +85,33 @@ set_theme() {
   [[ -n "$wallpaper" ]] && apply_background "$wallpaper"
 
   hyprctl reload >/dev/null 2>&1 || true
+  if command -v obsidian-toggle >/dev/null; then obsidian-toggle reapply; fi
   pkill -SIGUSR2 waybar 2>/dev/null || true
   if ! pgrep -x waybar >/dev/null; then
     hyprctl dispatch exec waybar >/dev/null 2>&1 || true
   fi
   makoctl reload 2>/dev/null || true
+  # Kitty documents SIGUSR1 as a configuration reload; running shells stay open.
+  pkill -SIGUSR1 -u "$UID" -x kitty 2>/dev/null || true
   notify-send "Theme changed" "$THEME_NAME" 2>/dev/null || true
 }
 
 choose_theme() {
-  local selected
-  selected="$(theme_dirs | rofi -dmenu -i -p 'Theme' -mesg "Current: $(current_theme)")"
-  [[ -n "$selected" ]] && set_theme "$selected"
+  local selected slug active=0 index=0 current
+  local -a slugs=() rows=()
+  current="$(current_theme)"
+  while IFS= read -r slug; do
+    load_palette "$slug"
+    slugs+=("$slug")
+    rows+=("$THEME_NAME   ·   $MODE")
+    [[ "$slug" == "$current" ]] && active=$index
+    index=$((index + 1))
+  done < <(theme_dirs)
+  selected="$(printf '%s\n' "${rows[@]}" | rofi -dmenu -i -no-custom -no-sort -format i \
+    -selected-row "$active" -a "$active" -p 'Theme' -mesg 'One palette for the desktop · Enter to apply' \
+    -theme-str 'entry { placeholder: "Search themes…"; }')" || return 0
+  [[ "$selected" =~ ^[0-9]+$ ]] && ((selected < ${#slugs[@]})) || return 0
+  set_theme "${slugs[selected]}"
 }
 
 choose_background() {
@@ -103,8 +119,12 @@ choose_background() {
   slug="$(current_theme)"
   mapfile -t paths < <(background_files "$slug")
   ((${#paths[@]})) || die "No wallpapers are installed for $slug"
-  selected="$(printf '%s\n' "${paths[@]##*/}" | rofi -dmenu -i -p 'Wallpaper' -format i)"
+  selected="$(for path in "${paths[@]}"; do printf '%s\0icon\x1f%s\n' "${path##*/}" "$path"; done | \
+    rofi -dmenu -i -no-custom -show-icons -p 'Wallpaper' -format i \
+      -mesg 'Choose a background for the current theme' \
+      -theme-str 'element-icon { size: 96px; } listview { lines: 4; } entry { placeholder: "Search wallpapers…"; }')" || return 0
   [[ "$selected" =~ ^[0-9]+$ ]] || exit 0
+  ((selected < ${#paths[@]})) || return 0
   path="${paths[$selected]}"
   printf '%s\n' "$path" > "$state_root/wallpaper-$slug"
   apply_background "$path"
@@ -132,7 +152,13 @@ case "${1:-switch}" in
   switch) choose_theme ;;
   list) theme_dirs ;;
   current) current_theme ;;
+  name) load_palette "$(current_theme)"; printf '%s\n' "$THEME_NAME" ;;
+  color)
+    [[ "${2:-}" =~ ^(BG|PANEL|TEXT|MUTED|ACCENT|ACCENT2|BORDER|DANGER)$ ]] || die 'Unknown color role'
+    load_palette "$(current_theme)"
+    printf '%s\n' "${!2}"
+    ;;
   wallpaper) choose_background ;;
   next-background) next_background ;;
-  *) die "Usage: obsidian-theme {set|restore|switch|list|current|wallpaper|next-background}" ;;
+  *) die "Usage: obsidian-theme {set|restore|switch|list|current|name|color ROLE|wallpaper|next-background}" ;;
 esac

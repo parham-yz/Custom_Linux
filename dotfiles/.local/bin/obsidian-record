@@ -1,61 +1,158 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env python3
+"""Record the desktop with verified start/stop state and a non-destructive menu."""
+import fcntl
+import os
+from pathlib import Path
+import shutil
+import signal
+import subprocess
+import sys
+import time
 
-state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/obsidian-ember/recording"
-output_dir="${XDG_VIDEOS_DIR:-$HOME/Videos}/Recordings"
-pid_file="$state_dir/pid"
-path_file="$state_dir/path"
-mkdir -p "$state_dir" "$output_dir"
+STATE = Path(os.environ.get('XDG_STATE_HOME', Path.home() / '.local/state')) / 'obsidian-ember/recording'
+OUTPUT = Path(os.environ.get('XDG_VIDEOS_DIR', Path.home() / 'Videos')) / 'Recordings'
 
-stop_recording() {
-  if [[ -f "$pid_file" ]] && kill -0 "$(<"$pid_file")" 2>/dev/null; then
-    pid="$(<"$pid_file")"
-    path="$(<"$path_file")"
-    kill -INT "$pid"
-    for attempt in {1..20}; do
-      kill -0 "$pid" 2>/dev/null || break
-      sleep 0.1
-    done
-    rm -f "$pid_file" "$path_file"
-    notify-send 'Recording saved' "$path"
+
+def notice(title, message):
+    subprocess.run(['notify-send', '-a', 'Screen recording', '-h', 'string:x-canonical-private-synchronous:obsidian-record', title, message], check=False)
+
+
+def identity(pid):
+    try:
+        proc = Path('/proc') / str(pid)
+        stat = (proc / 'stat').read_text().rsplit(')', 1)[1].split()
+        if stat[0] == 'Z':
+            return None
+        argv = (proc / 'cmdline').read_bytes().split(b'\0')
+        if not any(Path(os.fsdecode(arg)).name == 'wf-recorder' for arg in argv[:2] if arg):
+            return None
+        return stat[19]  # Kernel start time prevents a recycled PID matching.
+    except (OSError, IndexError):
+        return None
+
+
+def active():
+    try:
+        pid = int((STATE / 'pid').read_text())
+        current = identity(pid)
+        saved = (STATE / 'identity').read_text().strip() if (STATE / 'identity').exists() else current
+        return pid if current and current == saved else None
+    except (OSError, ValueError):
+        return None
+
+
+def clear():
+    for name in ('pid', 'path', 'identity'):
+        (STATE / name).unlink(missing_ok=True)
+
+
+def start(scope, audio):
+    if active():
+        notice('Recording already active', 'Use Alt+Print to stop, or open the recording menu.')
+        return 0
+    if not shutil.which('wf-recorder'):
+        notice('Recording unavailable', 'Install wf-recorder, then try again.')
+        return 1
+    args = ['wf-recorder', '--no-dmabuf', '-c', 'libopenh264']
+    if scope == 'region':
+        colors = []
+        for role in ('BG', 'ACCENT'):
+            result = subprocess.run(['obsidian-theme', 'color', role], capture_output=True, text=True)
+            colors.append(result.stdout.strip() if result.returncode == 0 else ('191d1b' if role == 'BG' else 'b1c59e'))
+        selected = subprocess.run(['slurp', '-b', '#' + colors[0] + 'cc', '-c', '#' + colors[1] + 'ff', '-B', '#00000066', '-w', '2'], capture_output=True, text=True)
+        if selected.returncode or not selected.stdout.strip():
+            return 0
+        args += ['-g', selected.stdout.strip()]
+    if audio == 'audio':
+        args += ['--audio', '--audio-backend=pipewire']
+    OUTPUT.mkdir(parents=True, exist_ok=True)
+    path = OUTPUT / (time.strftime('%Y-%m-%d_%H-%M-%S') + f'-{time.time_ns() % 1000000:06d}.mp4')
+    args += ['-f', str(path)]
+    with (STATE / 'wf-recorder.log').open('w') as log:
+        child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
+    time.sleep(.4)
+    token = identity(child.pid)
+    if child.poll() is not None or token is None:
+        clear()
+        notice('Recording could not start', 'No recording is running. Details: ~/.local/state/obsidian-ember/recording/wf-recorder.log')
+        return 1
+    (STATE / 'path').write_text(str(path))
+    (STATE / 'identity').write_text(token)
+    (STATE / 'pid').write_text(str(child.pid))
+    notice('Recording started', f'{"Selected region" if scope == "region" else "Full screen"} · {"with audio" if audio == "audio" else "silent"} · Alt+Print to stop')
     return 0
-  fi
-  return 1
-}
 
-start_recording() {
-  local scope="$1" audio="$2" geometry path
-  # Fedora's patent-safe FFmpeg build provides OpenH264 rather than libx264.
-  local -a args=(--no-dmabuf -c libopenh264)
-  if [[ "$scope" == region ]]; then
-    geometry="$(slurp -b '#0d0c0ccc' -c '#d6a15fff' -B '#00000066' -w 2)" || exit 0
-    args+=(-g "$geometry")
-  fi
-  [[ "$audio" == audio ]] && args+=(--audio --audio-backend=pipewire)
-  path="$output_dir/$(date +%Y-%m-%d_%H-%M-%S).mp4"
-  args+=(-f "$path")
-  nohup wf-recorder "${args[@]}" > "$state_dir/wf-recorder.log" 2>&1 &
-  printf '%s\n' "$!" > "$pid_file"
-  printf '%s\n' "$path" > "$path_file"
-  notify-send 'Recording started' "$scope • $audio • Alt+Print to stop"
-}
 
-recording_menu() {
-  local choice
-  choice="$(printf '%s\n' 'Region + audio' 'Region, silent' 'Full screen + audio' 'Full screen, silent' | rofi -dmenu -i -p 'Screen recording')"
-  case "$choice" in
-    'Region + audio') start_recording region audio ;;
-    'Region, silent') start_recording region silent ;;
-    'Full screen + audio') start_recording screen audio ;;
-    'Full screen, silent') start_recording screen silent ;;
-  esac
-}
+def stop():
+    pid = active()
+    if pid is None:
+        clear()
+        notice('No recording active', 'Choose a region or full screen to start recording.')
+        return 0
+    path = Path((STATE / 'path').read_text())
+    try:
+        os.kill(pid, signal.SIGINT)
+    except ProcessLookupError:
+        pass
+    for _ in range(100):
+        if active() is None:
+            clear()
+            if path.is_file() and path.stat().st_size > 0:
+                notice('Recording saved', str(path))
+                return 0
+            notice('Recording ended without a video', 'Check the recorder log for details.')
+            return 1
+        time.sleep(.1)
+    notice('Recording is still finishing', 'Wait a moment, then check the recording menu. The video has not been confirmed saved yet.')
+    return 1
 
-case "${1:-toggle}" in
-  menu) stop_recording || recording_menu ;;
-  toggle) stop_recording || start_recording region audio ;;
-  stop) stop_recording ;;
-  start-region) start_recording region "${2:-audio}" ;;
-  start-screen) start_recording screen "${2:-audio}" ;;
-  *) printf 'Usage: obsidian-record {menu|toggle|stop|start-region|start-screen}\n' >&2; exit 2 ;;
-esac
+
+def menu():
+    running = active() is not None
+    rows = ['Stop and save recording', 'Open recordings folder'] if running else ['Region with audio', 'Region, silent', 'Full screen with audio', 'Full screen, silent', 'Open recordings folder']
+    result = subprocess.run(['rofi', '-dmenu', '-i', '-no-custom', '-no-sort', '-format', 'i', '-p', 'Recording', '-mesg', 'Recording is active · Esc keeps it running' if running else 'Choose what to capture · Alt+Print starts or stops', '-theme-str', 'entry { placeholder: "Choose an action…"; }'], input='\n'.join(rows) + '\n', capture_output=True, text=True)
+    if result.returncode:
+        return 0
+    try:
+        index = int(result.stdout)
+        if index < 0 or index >= len(rows):
+            return 0
+    except ValueError:
+        return 0
+    if rows[index] == 'Open recordings folder':
+        OUTPUT.mkdir(parents=True, exist_ok=True)
+        subprocess.Popen(['xdg-open', str(OUTPUT)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return 0
+    if running:
+        return stop()
+    return start('region' if index < 2 else 'screen', 'audio' if index % 2 == 0 else 'silent')
+
+
+def main():
+    mode = sys.argv[1] if len(sys.argv) > 1 else 'toggle'
+    if mode == 'status':
+        if active():
+            print('recording')
+            return 0
+        return 1
+    if mode not in ('menu', 'toggle', 'stop', 'start-region', 'start-screen'):
+        print('Usage: obsidian-record {menu|toggle|stop|start-region|start-screen|status}', file=sys.stderr)
+        return 2
+    STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with (STATE / 'lock').open('w') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return 0
+        if mode == 'menu':
+            return menu()
+        if mode == 'stop' or (mode == 'toggle' and active()):
+            return stop()
+        audio = sys.argv[2] if len(sys.argv) > 2 else 'audio'
+        if audio not in ('audio', 'silent'):
+            return 2
+        return start('screen' if mode == 'start-screen' else 'region', audio)
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

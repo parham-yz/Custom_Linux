@@ -1,10 +1,21 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env python3
+"""Keep weather output valid and unobtrusive when the service is unavailable."""
+import html
+import json
+import subprocess
+import sys
 
-case "${1:-bar}" in
-  bar)
-    curl -fsS --max-time 8 'https://wttr.in/?format=%c+%t' 2>/dev/null || true
-    ;;
-  notice) exec obsidian-notice weather ;;
-  *) printf 'Usage: obsidian-weather {bar|notice}\n' >&2; exit 2 ;;
-esac
+if len(sys.argv) > 1 and sys.argv[1] == 'notice':
+    raise SystemExit(subprocess.call(['obsidian-notice', 'weather']))
+if len(sys.argv) > 1 and sys.argv[1] != 'bar':
+    raise SystemExit('Usage: obsidian-weather {bar|notice}')
+try:
+    result = subprocess.run(['curl', '-fsS', '--max-time', '8', 'https://wttr.in/?format=%c+%t'], capture_output=True, text=True, timeout=10)
+    text = ' '.join(result.stdout.split()) if result.returncode == 0 else ''
+except (OSError, subprocess.TimeoutExpired):
+    text = ''
+# A proxy error page should never become a multi-line bar label.
+if not text or len(text) > 40 or '<' in text:
+    print(json.dumps({'text': '', 'class': 'empty', 'tooltip': 'Weather unavailable'}))
+else:
+    print(json.dumps({'text': html.escape(text), 'class': 'available', 'tooltip': 'Local weather · Click for details'}))

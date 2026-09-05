@@ -4,7 +4,7 @@ export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
 
 output_dir="${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots"
 mkdir -p "$output_dir"
-timestamp="$(date +%Y-%m-%d_%H-%M-%S)"
+timestamp="$(date +%Y-%m-%d_%H-%M-%S-%N)"
 
 capture_file() {
   local kind="$1" geometry="${2:-}" path="$output_dir/$timestamp-$kind.png"
@@ -18,7 +18,7 @@ capture_file() {
 }
 
 region_geometry() {
-  slurp -b '#0d0c0ccc' -c '#d6a15fff' -B '#00000066' -w 2
+  slurp -b "#$(obsidian-theme color BG)cc" -c "#$(obsidian-theme color ACCENT)ff" -B '#00000066' -w 2
 }
 
 window_geometry() {
@@ -33,7 +33,11 @@ case "${1:-region}" in
   screen) capture_file screen ;;
   window)
     geometry="$(window_geometry)"
-    [[ "$geometry" != 'null,null nullxnull' ]] && capture_file window "$geometry"
+    if [[ "$geometry" =~ ^-?[0-9]+,-?[0-9]+\ [1-9][0-9]*x[1-9][0-9]*$ ]]; then
+      capture_file window "$geometry"
+    else
+      notify-send 'No window selected' 'Focus a window, then try again.'
+    fi
     ;;
   ocr)
     geometry="$(region_geometry)" || exit 0

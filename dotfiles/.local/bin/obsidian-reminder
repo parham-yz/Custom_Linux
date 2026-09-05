@@ -4,13 +4,18 @@ export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
 
 set_reminder() {
   local minutes message unit
-  minutes="$(printf '' | rofi -dmenu -p 'Minutes' -mesg 'Examples: 5, 20, 90')"
-  [[ "$minutes" =~ ^[0-9]+$ ]] && ((minutes > 0)) || exit 0
-  message="$(printf '' | rofi -dmenu -p 'Reminder' -mesg "In $minutes minutes")"
+  minutes="$(printf '5\n15\n30\n60\n' | rofi -dmenu -p 'Minutes' -mesg 'Choose a duration or type 1–10080 minutes')" || return 0
+  if [[ ! "$minutes" =~ ^[0-9]{1,5}$ ]] || ((10#$minutes < 1 || 10#$minutes > 10080)); then
+    notify-send 'Reminder not set' 'Enter a whole number from 1 to 10080 minutes.'
+    return 0
+  fi
+  minutes=$((10#$minutes))
+  message="$(printf '' | rofi -dmenu -p 'Reminder' -mesg "In $minutes minutes" \
+    -theme-str 'entry { placeholder: "What should I remind you about?"; }')" || return 0
   [[ -n "$message" ]] || exit 0
-  unit="obsidian-reminder-$(date +%s)"
+  unit="obsidian-reminder-$(date +%s%N)"
   systemd-run --user --unit "$unit" --on-active="${minutes}m" \
-    notify-send --urgency=critical 'Reminder' "$message" >/dev/null
+    notify-send --urgency=critical -- 'Reminder' "$message" >/dev/null
   notify-send 'Reminder set' "$message • ${minutes}m"
 }
 
@@ -18,17 +23,28 @@ show_reminders() {
   local timers
   timers="$(systemctl --user list-timers --all --no-pager --no-legend 'obsidian-reminder-*' 2>/dev/null || true)"
   if [[ -n "$timers" ]]; then
-    printf '%s\n' "$timers" | rofi -dmenu -p 'Reminders' -mesg 'Esc to close' >/dev/null || true
+    printf '%s\n' "$timers" | rofi -dmenu -no-custom -p 'Reminders' -mesg 'Upcoming reminders · Esc to close' \
+      -theme-str 'window { width: 900px; }' >/dev/null || true
   else
     notify-send 'Reminders' 'No active reminders'
   fi
 }
 
 clear_reminders() {
-  mapfile -t units < <(systemctl --user list-timers --all --no-legend 'obsidian-reminder-*' | awk '{print $NF}')
+  local choice unit failed=0
+  mapfile -t units < <(systemctl --user list-units --all --type=timer --plain --no-legend 'obsidian-reminder-*.timer' | awk '{print $1}')
+  ((${#units[@]})) || { notify-send 'Reminders' 'No active reminders'; return 0; }
+  choice="$(printf 'Cancel\nClear reminders\n' | rofi -dmenu -no-custom -p 'Reminders' \
+    -mesg "Cancel ${#units[@]} scheduled reminder(s)?")" || return 0
+  [[ "$choice" == 'Clear reminders' ]] || return 0
   for unit in "${units[@]}"; do
-    systemctl --user stop "$unit" "${unit%.timer}.service" 2>/dev/null || true
+    [[ "$unit" =~ ^obsidian-reminder-[0-9]+\.timer$ ]] || continue
+    systemctl --user stop "$unit" "${unit%.timer}.service" 2>/dev/null || failed=1
   done
+  if ((failed)); then
+    notify-send 'Reminders' 'Some reminders could not be cleared. Check the reminders list.'
+    return 1
+  fi
   notify-send 'Reminders' 'All reminders cleared'
 }
 

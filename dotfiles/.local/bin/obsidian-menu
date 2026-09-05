@@ -3,9 +3,18 @@ set -euo pipefail
 export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
 
 choose() {
-  local prompt="$1" message="$2"
+  local prompt="$1" message="$2" selected option
   shift 2
-  printf '%s\n' "$@" | rofi -dmenu -i -p "$prompt" -mesg "$message"
+  local -a options=("$@")
+  [[ "$prompt" == ' OMA ' || "$prompt" == Confirm ]] || options+=('󰁍  Back')
+  selected="$(printf '%s\n' "${options[@]}" | rofi -dmenu -i -no-custom -no-sort \
+    -p "$prompt" -mesg "$message" \
+    -theme-str 'entry { placeholder: "Search actions…"; }')" || return 0
+  # Accept only a supplied row, even when a launcher returns unexpected text.
+  for option in "${options[@]}"; do
+    [[ "$selected" == "$option" ]] && { printf '%s\n' "$option"; return 0; }
+  done
+  return 0
 }
 
 confirm() {
@@ -15,28 +24,31 @@ confirm() {
 
 root_menu() {
   local choice
-  choice="$(choose ' OMA ' 'Obsidian Ember • Omarchy controls for Fedora Asahi' \
+  choice="$(choose ' OMA ' "$(obsidian-theme name) · Enter to open · Esc to close" \
     '󰀻  Applications' \
-    '󱚣  AI Agents' \
+    '󱚣  AI agents' \
     '󰄀  Capture' \
     '󰏘  Style' \
-    '󰔡  Toggle' \
+    '󰔡  Quick settings' \
+    '󰖩  Connectivity' \
     '󰒓  System' \
     '󰘳  Utilities' \
     '󰒓  Setup' \
-    '󰌌  Keybindings' \
+    '󰌌  Keyboard shortcuts' \
     '󰋼  About')"
   case "$choice" in
+    *Back) exec "$0" root ;;
     *Applications) rofi -show drun -show-icons ;;
-    *AI\ Agents) exec "$0" agents ;;
+    *AI\ agents) exec "$0" agents ;;
     *Capture) exec "$0" capture ;;
     *Style) exec "$0" style ;;
-    *Toggle) exec "$0" toggle ;;
+    *Quick\ settings) exec "$0" toggle ;;
+    *Connectivity) exec "$0" connectivity ;;
     *System) exec "$0" system ;;
     *Utilities) exec "$0" utilities ;;
     *Setup) exec "$0" setup ;;
-    *Keybindings) obsidian-keybindings ;;
-    *About) notify-send 'Obsidian Ember' 'Omarchy-inspired Fedora Asahi desktop • Super+K shows every shortcut' ;;
+    *Keyboard\ shortcuts) obsidian-keybindings ;;
+    *About) notify-send 'Your desktop' "$(. /etc/os-release; printf '%s' "$PRETTY_NAME") · Hyprland\nSuper+K shows keyboard shortcuts" ;;
   esac
 }
 
@@ -54,11 +66,13 @@ agents_menu() {
     '󰑓  Refresh usage' \
     '󰅖  Toggle crash diagnosis')"
   case "$choice" in
+    *Back) exec "$0" root ;;
     *dashboard) obsidian-agent usage panel ;;
     *Launch*) obsidian-agent launch ;;
     *Choose*) obsidian-agent pick ;;
     *prompt)
-      prompt="$(printf '' | rofi -dmenu -p 'Agent prompt' -mesg 'The prompt is passed as one safe argument.')" || return 0
+      prompt="$(printf '' | rofi -dmenu -p 'Agent prompt' -mesg 'Describe the task for your default agent.' \
+        -theme-str 'entry { placeholder: "What would you like to do?"; }')" || return 0
       [[ -n $prompt ]] && obsidian-agent prompt "$prompt"
       ;;
     *settings) obsidian-agent settings ;;
@@ -72,7 +86,7 @@ agents_menu() {
 
 capture_menu() {
   local choice
-  choice="$(choose 'Capture' 'Selections are copied and saved to Pictures/Screenshots' \
+  choice="$(choose 'Capture' 'Screenshots → Pictures/Screenshots · Recordings → Videos/Recordings' \
     '󰹑  Region screenshot' \
     '󰍹  Full-screen screenshot' \
     '󰖲  Active-window screenshot' \
@@ -80,6 +94,7 @@ capture_menu() {
     '󰐲  Extract text (OCR)' \
     '󰏘  Pick color')"
   case "$choice" in
+    *Back) exec "$0" root ;;
     *Region*) obsidian-capture region ;;
     *Full-screen*) obsidian-capture screen ;;
     *Active-window*) obsidian-capture window ;;
@@ -91,7 +106,7 @@ capture_menu() {
 
 style_menu() {
   local choice
-  choice="$(choose 'Style' "Current theme: $(obsidian-theme current)" \
+  choice="$(choose 'Style' "Current theme: $(obsidian-theme name)" \
     '󰏘  Choose theme' \
     '󰸉  Choose wallpaper' \
     '󰸉  Next wallpaper' \
@@ -99,6 +114,7 @@ style_menu() {
     '󰇙  Toggle window gaps' \
     '󰑓  Reload desktop')"
   case "$choice" in
+    *Back) exec "$0" root ;;
     *theme) obsidian-theme switch ;;
     *Choose\ wallpaper) obsidian-theme wallpaper ;;
     *Next\ wallpaper) obsidian-theme next-background ;;
@@ -109,23 +125,39 @@ style_menu() {
 }
 
 toggle_menu() {
-  local choice
-  choice="$(choose 'Toggle' 'Fast desktop state switches' \
-    '󰃠  Automatic brightness' \
-    '󰒲  Idle/sleep prevention' \
-    '󰾅  Power saver' \
-    '󰖔  Night light' \
-    '󰂛  Notification silence' \
+  local choice status
+  status="$(obsidian-status states)"
+  choice="$(choose 'Quick settings' 'Select to toggle · current states shown on the right' \
+    "󰃠  Automatic brightness    $(jq -r .brightness <<<"$status")" \
+    "󰒲  Keep awake              $(jq -r .awake <<<"$status")" \
+    "󰾅  Power saver             $(jq -r .power <<<"$status")" \
+    "󰖔  Night light             $(jq -r .nightlight <<<"$status")" \
+    "󰂛  Do not disturb          $(jq -r .dnd <<<"$status")" \
     '󰍜  Top bar' \
     '󰇙  Window gaps')"
   case "$choice" in
+    *Back) exec "$0" root ;;
     *Automatic*) obsidian-toggle autobrightness ;;
-    *Idle*) obsidian-toggle idle ;;
+    *Keep\ awake*) obsidian-toggle idle ;;
     *Power*) obsidian-power toggle ;;
     *Night*) obsidian-toggle nightlight ;;
-    *Notification*) obsidian-toggle notifications ;;
+    *Do\ not\ disturb*) obsidian-toggle notifications ;;
     *Top\ bar) obsidian-toggle bar ;;
     *Window\ gaps) obsidian-toggle gaps ;;
+  esac
+  if [[ -n "$choice" ]]; then exec "$0" toggle; fi
+}
+
+connectivity_menu() {
+  local choice
+  choice="$(choose 'Connectivity' 'Connect devices and choose audio outputs' \
+    '󰖩  Wi-Fi networks' '󰂯  Bluetooth devices' '󰓃  Audio controls' '󰒓  Saved network settings')"
+  case "$choice" in
+    *Back) exec "$0" root ;;
+    *Wi-Fi*) obsidian-network ;;
+    *Bluetooth*) obsidian-bluetooth ;;
+    *Audio*) if command -v pavucontrol >/dev/null; then pavucontrol; else kitty alsamixer; fi ;;
+    *Saved*) nm-connection-editor ;;
   esac
 }
 
@@ -140,13 +172,17 @@ system_menu() {
     '󰜉  Reboot' \
     '󰐥  Power off')"
   case "$choice" in
+    *Back) exec "$0" root ;;
     *Lock*)
-      if command -v swaylock >/dev/null; then swaylock -f -c 0d0c0c; else notify-send 'Lock unavailable' 'Install swaylock: sudo dnf install swaylock'; fi
+      obsidian-lock
       ;;
-    *Suspend) confirm 'Suspend' && systemctl suspend ;;
-    *Log\ out) confirm 'Log out' && hyprctl dispatch exit ;;
-    *Reboot) confirm 'Reboot' && systemctl reboot ;;
-    *Power\ off) confirm 'Power off' && systemctl poweroff ;;
+    *Suspend)
+      confirm 'Suspend' || return 0
+      if command -v swaylock >/dev/null; then obsidian-lock; fi
+      systemctl suspend ;;
+    *Log\ out) confirm 'Log out' || return 0; hyprctl dispatch exit ;;
+    *Reboot) confirm 'Reboot' || return 0; systemctl reboot ;;
+    *Power\ off) confirm 'Power off' || return 0; systemctl poweroff ;;
   esac
 }
 
@@ -168,6 +204,7 @@ utilities_menu() {
     '󰆍  Terminal' \
     '󰉋  Files')"
   case "$choice" in
+    *Back) exec "$0" root ;;
     *Power*) obsidian-power notice ;;
     *Clipboard*) obsidian-clipboard open ;;
     *Emoji*) obsidian-emoji ;;
@@ -178,7 +215,7 @@ utilities_menu() {
     *Weather*) obsidian-notice weather ;;
     *activity) kitty btop --force-utf --config "$HOME/.config/btop/obsidian-ember.conf" ;;
     *Audio*) if command -v pavucontrol >/dev/null; then pavucontrol; else kitty alsamixer; fi ;;
-    *Wi-Fi*) nm-connection-editor ;;
+    *Wi-Fi*) obsidian-network ;;
     *Bluetooth*) obsidian-bluetooth ;;
     *Terminal) kitty ;;
     *Files) dolphin ;;
@@ -189,7 +226,7 @@ setup_menu() {
   local choice theme
   theme="$(obsidian-theme current)"
   choice="$(choose 'Setup' 'Configuration and maintenance' \
-    '󰚰  Upgrade Fedora Asahi to 44' \
+    '󰋼  Fedora release information' \
     '󰒓  Edit Hyprland config' \
     '󰍜  Edit Waybar config' \
     '󰆍  Edit terminal config' \
@@ -198,11 +235,12 @@ setup_menu() {
     '󰚰  Update Fedora + Homebrew' \
     '󰑓  Reload desktop')"
   case "$choice" in
-    *Upgrade*) obsidian-asahi-upgrade ;;
+    *Back) exec "$0" root ;;
+    *Fedora\ release*) notify-send 'Fedora' "$(. /etc/os-release; printf '%s' "$PRETTY_NAME")" ;;
     *Hyprland*) kitty nvim "$HOME/.config/hypr/hyprland.conf" ;;
     *Waybar*) kitty nvim "$HOME/.config/waybar/config" ;;
     *terminal*) kitty nvim "$HOME/.config/kitty/kitty.conf" ;;
-    *wallpapers*) dolphin "$HOME/.config/obsidian-ember/backgrounds/$theme" ;;
+    *wallpapers*) dolphin "$HOME/.config/obsidian-ember/themes/$theme/wallpapers" ;;
     *system\ settings*) systemsettings ;;
     *Update*) obsidian-updates run ;;
     *Reload*) obsidian-toggle reload ;;
@@ -215,6 +253,7 @@ case "${1:-root}" in
   capture) capture_menu ;;
   style) style_menu ;;
   toggle) toggle_menu ;;
+  connectivity) connectivity_menu ;;
   system) system_menu ;;
   utilities) utilities_menu ;;
   setup) setup_menu ;;

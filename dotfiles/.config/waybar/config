@@ -5,27 +5,57 @@
   "margin-top": 5,
   "margin-left": 10,
   "margin-right": 10,
-  "spacing": 5,
+  "spacing": 3,
   "reload_style_on_change": true,
-  "modules-left": ["custom/launcher", "hyprland/workspaces", "hyprland/window", "custom/weather", "custom/updates"],
-  "modules-center": ["custom/notch"],
-  "modules-right": ["clock", "custom/agents", "custom/activity", "pulseaudio", "bluetooth", "network", "backlight", "battery", "tray"],
+  "modules-left": [
+    "custom/launcher",
+    "hyprland/workspaces",
+    "hyprland/window",
+    "custom/weather",
+    "custom/updates"
+  ],
+  "modules-center": [
+    "custom/notch"
+  ],
+  "modules-right": [
+    "clock",
+    "custom/status",
+    "custom/agents",
+    "custom/activity",
+    "pulseaudio",
+    "bluetooth",
+    "network",
+    "backlight",
+    "battery",
+    "tray"
+  ],
   "custom/launcher": {
-    "format": "  OMA  ",
-    "tooltip": false,
-    "on-click": "obsidian-menu"
+    "format": "OMA",
+    "tooltip": true,
+    "on-click": "obsidian-menu",
+    "tooltip-format": "Desktop menu · Super+Alt+Space\nRight click: themes",
+    "on-click-right": "obsidian-theme switch"
   },
   "hyprland/workspaces": {
     "format": "{icon}",
     "on-click": "activate",
     "sort-by-number": true,
-    "persistent-workspaces": {"*": 5},
-    "format-icons": {"active": "●", "default": "○", "urgent": "◆"}
+    "persistent-workspaces": {
+      "*": 5
+    },
+    "format-icons": {
+      "active": "●",
+      "default": "○",
+      "urgent": "◆"
+    }
   },
   "hyprland/window": {
     "format": "{title}",
-    "max-length": 28,
-    "rewrite": {"(.*) — Mozilla Firefox": "$1", "(.*) - Visual Studio Code": "$1"}
+    "max-length": 24,
+    "rewrite": {
+      "(.*) — Mozilla Firefox": "$1",
+      "(.*) - Visual Studio Code": "$1"
+    }
   },
   "clock": {
     "timezone": "Europe/Berlin",
@@ -41,20 +71,22 @@
     "exec": "obsidian-weather bar",
     "interval": 1800,
     "tooltip": true,
-    "tooltip-format": "Weather • click for details",
-    "on-click": "obsidian-weather notice"
+    "on-click": "obsidian-weather notice",
+    "return-type": "json"
   },
   "custom/updates": {
     "return-type": "json",
     "exec": "obsidian-updates check",
     "interval": 21600,
-    "on-click": "obsidian-updates run"
+    "on-click": "obsidian-updates menu",
+    "on-click-right": "obsidian-updates refresh",
+    "signal": 8,
+    "exec-on-event": false
   },
   "custom/agents": {
     "return-type": "json",
     "exec": "obsidian-agent usage bar",
     "interval": 30,
-    "restart-interval": 5,
     "tooltip": true,
     "on-click": "obsidian-agent usage panel",
     "on-click-right": "obsidian-agent launch",
@@ -69,10 +101,19 @@
   "pulseaudio": {
     "format": "{icon} {volume}%",
     "format-muted": "󰖁",
-    "format-icons": {"default": ["󰕿", "󰖀", "󰕾"]},
-    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "format-icons": {
+      "default": [
+        "󰕿",
+        "󰖀",
+        "󰕾"
+      ]
+    },
+    "on-click": "obsidian-osd volume-mute",
     "on-click-right": "sh -c 'command -v pavucontrol >/dev/null && exec pavucontrol || exec kitty alsamixer'",
-    "scroll-step": 5
+    "scroll-step": 5,
+    "tooltip-format": "Volume {volume}%\nClick: mute · Right click: audio settings\nScroll: adjust volume",
+    "on-scroll-up": "obsidian-osd volume-up 5",
+    "on-scroll-down": "obsidian-osd volume-down 5"
   },
   "bluetooth": {
     "format": "󰂯",
@@ -99,25 +140,55 @@
     "format-ethernet": "󰈀",
     "format-disconnected": "󰤭",
     "format-disabled": "󰤭",
-    "tooltip-format-wifi": "{essid}\n{ipaddr}\n{bandwidthDownBytes} down  {bandwidthUpBytes} up",
+    "tooltip-format-wifi": "{essid}\n{ipaddr}\n{bandwidthDownBytes} down  {bandwidthUpBytes} up\nClick: networks · Right click: saved connections",
     "tooltip-format-disconnected": "Wi-Fi disconnected • click to connect",
     "tooltip-format-disabled": "Wi-Fi is off • click to turn it on",
     "on-click": "obsidian-network",
-    "on-click-right": "nm-connection-editor"
+    "on-click-right": "nm-connection-editor",
+    "tooltip-format-ethernet": "Wired connection\n{ipaddr}\nClick: Wi-Fi networks · Right click: saved connections"
   },
   "backlight": {
     "format": "󰃠 {percent}%",
-    "scroll-step": 5
+    "scroll-step": 5,
+    "tooltip-format": "Brightness {percent}%\nScroll: adjust · Click: quick settings",
+    "on-click": "obsidian-menu toggle",
+    "on-scroll-up": "obsidian-osd brightness-up 5",
+    "on-scroll-down": "obsidian-osd brightness-down 5"
   },
   "battery": {
-    "states": {"warning": 30, "critical": 15},
+    "states": {
+      "warning": 30,
+      "critical": 15
+    },
     "format": "{icon} {capacity}%",
     "format-charging": "󰂄 {capacity}%",
     "format-plugged": "󰚥 {capacity}%",
-    "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
+    "format-icons": [
+      "󰁺",
+      "󰁻",
+      "󰁼",
+      "󰁽",
+      "󰁾",
+      "󰁿",
+      "󰂀",
+      "󰂁",
+      "󰂂",
+      "󰁹"
+    ],
     "tooltip-format": "{timeTo}  •  {power:.1f} W",
     "on-click": "obsidian-power notice",
     "on-click-right": "obsidian-power toggle"
   },
-  "tray": {"icon-size": 16, "spacing": 8}
+  "tray": {
+    "icon-size": 16,
+    "spacing": 8
+  },
+  "custom/status": {
+    "return-type": "json",
+    "exec": "obsidian-status bar",
+    "interval": 2,
+    "tooltip": true,
+    "on-click": "obsidian-status open",
+    "on-click-right": "obsidian-menu toggle"
+  }
 }

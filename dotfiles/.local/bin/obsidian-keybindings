@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cat <<'KEYS' | rofi -dmenu -i -p 'Keybindings' -mesg 'Search all Obsidian Ember / Omarchy-style shortcuts' >/dev/null || true
+cat <<'KEYS' | rofi -dmenu -i -no-custom -p 'Keyboard shortcuts' -mesg 'Search by action or key · Esc to close' \
+  -theme-str 'window { width: 820px; } entry { placeholder: "Search shortcuts…"; }' >/dev/null || true
 SUPER + SPACE                    Application launcher
 SUPER + ALT + SPACE              Obsidian control menu
 SUPER + ESCAPE                   System / power menu

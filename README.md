@@ -18,9 +18,9 @@ Snapshot created: `2026-08-13T09:36:52+02:00`
 | Hyprland inner gap | **4 px** |
 | Hyprland outer gap | **4 px** |
 | Display | 2560Ã—1664 @ 60 Hz, scale 1.6 |
-| Active theme | `obsidian-ember` |
+| Snapshot default theme | `obsidian-ember` |
 
-The bar retains its readable text/icon sizes and horizontal widths. Only its vertical geometry was compacted. The top bar margin is 5 px, while the outer and inner window gaps are both 4 px.
+The bar groups controls into two quiet surfaces and preserves the central notch clearance. Its top margin is 5 px, while the outer and inner window gaps are both 4 px. The [desktop polish guide](UI_POLISH.md) includes dark/light previews, interaction fixes, and installation instructions.
 
 ## Repository contents
 
@@ -165,8 +165,10 @@ The configuration is tailored to Fedora Asahi Remix on Apple Silicon and a 2560Ã
 
 ```bash
 ./scripts/test-agent-integration.sh
+./scripts/test-bluetooth-integration.sh
+python3 scripts/test-desktop-ui.py
+python3 scripts/test-minimal-themes.py
 ./scripts/verify-snapshot.sh
 ```
 
-The first command tests the native AI layer in an isolated home directory. The
-second checks file hashes and scans tracked text for common secret patterns. The authoritative integrity list is `SHA256SUMS`.
+The tests exercise agent, Bluetooth, desktop interactions, and theme rendering in isolation. The final command checks file hashes and scans snapshot text for common secret patterns. The authoritative integrity list is `SHA256SUMS`.

@@ -2,9 +2,9 @@
 @define-color panel-solid #{{PANEL}};
 @define-color hover-solid #{{HOVER}};
 @define-color border-solid #{{BORDER}};
-@define-color bg alpha(@bg-solid, 0.91);
-@define-color panel alpha(@panel-solid, 0.95);
-@define-color hover alpha(@hover-solid, 0.95);
+@define-color bg @bg-solid;
+@define-color panel @panel-solid;
+@define-color hover @hover-solid;
 @define-color border alpha(@border-solid, 0.44);
 @define-color text #{{TEXT}};
 @define-color muted #{{MUTED}};

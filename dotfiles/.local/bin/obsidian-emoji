@@ -3,7 +3,8 @@ set -euo pipefail
 export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
 
 data_file="${XDG_CONFIG_HOME:-$HOME/.config}/obsidian-ember/data/emojis.txt"
-selection="$(rofi -dmenu -i -p 'Emoji' -mesg 'Select to paste into the focused app' < "$data_file")"
+selection="$(rofi -dmenu -i -no-custom -p 'Emoji' -mesg 'Enter pastes into the previous app · Esc cancels' \
+  -theme-str 'entry { placeholder: "Search emoji names…"; }' < "$data_file")" || exit 0
 [[ -n "$selection" ]] || exit 0
 emoji="${selection%% *}"
 printf '%s' "$emoji" | wl-copy

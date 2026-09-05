@@ -97,7 +97,7 @@ confirm() {
   local prompt="$1"
   if [[ ${OBSIDIAN_AGENT_ASSUME_YES:-0} == 1 ]]; then return 0; fi
   if [[ -n ${DISPLAY:-}${WAYLAND_DISPLAY:-} ]] && command -v rofi >/dev/null; then
-    [[ $(printf 'Cancel\nContinue\n' | rofi -dmenu -i -p 'AI Agent' -mesg "$prompt") == Continue ]]
+    [[ $(printf 'Cancel\nContinue\n' | rofi -dmenu -i -no-custom -p 'AI Agent' -mesg "$prompt") == Continue ]]
   else
     read -r -p "$prompt [y/N] " answer
     [[ $answer == [Yy]* ]]
@@ -144,7 +144,7 @@ agent_pick() {
   if [[ -n ${OBSIDIAN_AGENT_TEST_SELECTION:-} ]]; then
     agent=$OBSIDIAN_AGENT_TEST_SELECTION
   elif [[ -n ${DISPLAY:-}${WAYLAND_DISPLAY:-} ]] && command -v rofi >/dev/null; then
-    selection=$(picker_rows | cut -f1 | rofi -dmenu -i -p 'Default Agent' \
+    selection=$(picker_rows | cut -f1 | rofi -dmenu -i -no-custom -p 'Default Agent' \
       -theme-str 'window { width: 700px; } listview { lines: 9; fixed-height: false; } entry { placeholder: "Search agents…"; }' \
       -mesg 'Choose your coding agent. Missing tools are installed only after confirmation.') || return 0
     agent=$(picker_rows | awk -F '\t' -v selected="$selection" '$1 == selected { print $2; exit }')
@@ -263,7 +263,7 @@ agent_settings() {
       "Approval mode: $mode" \
       "Network usage checks: $network" \
       'Install agent skills' \
-      'Run diagnostics' | rofi -dmenu -i -p 'Agent Settings' \
+      'Run diagnostics' | rofi -dmenu -i -no-custom -p 'Agent Settings' \
       -mesg "Default: $(provider_name "${current:-none}")") || return 0
   fi
   case "$choice" in
@@ -285,7 +285,7 @@ agent_settings() {
       systemctl --user start obsidian-agent-usage.service 2>/dev/null || true
       ;;
     'Install agent skills') skills_install; notify-send 'AI Agent' 'OS skills installed for supported agents.' 2>/dev/null || true;;
-    'Run diagnostics') exec "$0" doctor;;
+    'Run diagnostics') exec kitty --hold "$0" doctor;;
   esac
 }
 
@@ -294,7 +294,7 @@ agent_invite() {
   [[ -e $marker || -n $(agent_get) ]] && return 0
   mkdir -p "$STATE_HOME"; chmod 700 "$STATE_HOME"; (umask 077; : >"$marker")
   notify-send -a 'Obsidian Agent' -u normal 'Set your default AI agent' \
-    'Press Super+Shift+Ctrl+A or open OMA › Setup › Default AI agent.' 2>/dev/null || true
+    'Press Super+Shift+Ctrl+A or open OMA › AI Agents › Choose default agent.' 2>/dev/null || true
 }
 
 agent_doctor() {

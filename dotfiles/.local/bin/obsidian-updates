@@ -1,21 +1,64 @@
 #!/usr/bin/env bash
 set -euo pipefail
 export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
+cache="${XDG_CACHE_HOME:-$HOME/.cache}/obsidian-ember/updates.json"
 
-case "${1:-check}" in
-  check)
-    fedora_output="$(dnf --setopt=logdir=/tmp check-upgrade -q 2>/dev/null || true)"
-    fedora_count="$(printf '%s\n' "$fedora_output" | awk '$1 ~ /\.(aarch64|noarch|x86_64)$/ {count++} END {print count+0}')"
-    brew_count="$(brew outdated --quiet 2>/dev/null | wc -l)"
+check_updates() {
+  local fedora_output brew_output fedora_status=0 brew_status=0 fedora_count brew_count total payload
+  fedora_output="$(timeout 45 dnf --setopt=logdir=/tmp check-upgrade -q 2>/dev/null)" || fedora_status=$?
+  brew_output=''
+  if command -v brew >/dev/null; then
+    brew_output="$(HOMEBREW_NO_AUTO_UPDATE=1 timeout 30 brew outdated --quiet 2>/dev/null)" || brew_status=$?
+  fi
+  if (( (fedora_status != 0 && fedora_status != 100) || brew_status != 0 )); then
+    payload="$(jq -nc '{text:"󰚰 ?",tooltip:"Update check unavailable · Click to retry",class:"error"}')"
+  else
+    fedora_count="$(awk '$1 ~ /\.(aarch64|noarch|x86_64)$/ {count++} END {print count+0}' <<<"$fedora_output")"
+    brew_count="$(awk 'NF {count++} END {print count+0}' <<<"$brew_output")"
     total=$((fedora_count + brew_count))
     if ((total > 0)); then
-      jq -nc --arg text "󰚰 $total" --arg tooltip "$fedora_count Fedora • $brew_count Homebrew updates" '{text:$text,tooltip:$tooltip,class:"available"}'
+      payload="$(jq -nc --arg text "󰚰 $total" --arg tooltip "$fedora_count Fedora · $brew_count Homebrew updates\nClick: options · Right click: check again" '{text:$text,tooltip:$tooltip,class:"available"}')"
     else
-      jq -nc '{text:"",tooltip:"System is current",class:"current"}'
+      payload="$(jq -nc '{text:"",tooltip:"No updates available",class:"current"}')"
     fi
+  fi
+  mkdir -p "$(dirname "$cache")"
+  local tmp
+  tmp="$(mktemp "${cache}.XXXXXX")"
+  printf '%s\n' "$payload" > "$tmp"
+  mv "$tmp" "$cache"
+  printf '%s\n' "$payload"
+}
+
+case "${1:-check}" in
+  check|status) check_updates ;;
+  refresh)
+    notify-send 'Updates' 'Checking Fedora and Homebrew…'
+    "$0" check >/dev/null
+    notify-send 'Updates' "$(jq -r .tooltip "$cache")"
+    pkill -RTMIN+8 -u "$UID" -x waybar 2>/dev/null || true
+    ;;
+  menu)
+    message="$(jq -r .tooltip "$cache" 2>/dev/null || printf 'Choose how to check or install updates')"
+    selected="$(printf 'Check again\nInstall available updates…\nCancel\n' | rofi -dmenu -i -no-custom -p 'Updates' -mesg "$message")" || exit 0
+    case "$selected" in
+      'Check again') exec "$0" refresh ;;
+      'Install available updates…') exec "$0" run ;;
+    esac
     ;;
   run)
-    exec kitty bash -lc 'sudo dnf upgrade; brew upgrade; printf "\nUpdates complete. Press Enter to close."; read -r'
+    exec kitty --title 'System updates' --hold "$0" apply
     ;;
-  *) printf 'Usage: obsidian-updates {check|run}\n' >&2; exit 2 ;;
+  apply)
+    printf 'Update Fedora and Homebrew packages.\n'
+    read -r -p 'Continue? [y/N] ' answer
+    [[ "$answer" == [Yy] ]] || exit 0
+    failed=0
+    sudo dnf upgrade || failed=1
+    if command -v brew >/dev/null; then brew upgrade || failed=1; fi
+    if ((failed)); then printf '\nSome updates failed. Review the output above.\n'; exit 1; fi
+    printf '\nUpdates completed. You can close this window.\n'
+    rm -f "$cache"
+    ;;
+  *) printf 'Usage: obsidian-updates {check|status|refresh|menu|run}\n' >&2; exit 2 ;;
 esac

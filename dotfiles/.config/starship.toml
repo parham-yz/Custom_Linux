@@ -1,4 +1,4 @@
-format = "[╭─](#9f9183)$directory$git_branch$git_status$fill$cmd_duration$time\n[╰─](#9f9183)$character"
+format = "[╭─](#a49688)$directory$git_branch$git_status$fill$cmd_duration$time\n[╰─](#a49688)$character"
 add_newline = true
 
 [directory]
@@ -21,13 +21,13 @@ symbol = " "
 
 [cmd_duration]
 min_time = 500
-style = "#9f9183"
+style = "#a49688"
 format = "[took $duration ]($style)"
 
 [time]
 disabled = false
 time_format = "%H:%M"
-style = "#9f9183"
+style = "#a49688"
 format = "[$time ]($style)"
 
 [character]

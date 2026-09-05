@@ -6,6 +6,8 @@ history_dir="${XDG_STATE_HOME:-$HOME/.local/state}/obsidian-ember/clipboard"
 watch_pid="$history_dir/watch.pid"
 wtype_bin="$(command -v wtype || true)"
 mkdir -p "$history_dir"
+chmod 700 "$history_dir"
+umask 077
 
 terminal_active() {
   local class
@@ -39,21 +41,24 @@ store() {
   find "$history_dir" -type f -name "*-$hash.txt" -delete
   path="$history_dir/$(date +%s%N)-$hash.txt"
   printf '%s' "$content" > "$path"
-  mapfile -t old_files < <(find "$history_dir" -type f -printf '%T@ %p\n' | sort -rn | cut -d' ' -f2- | tail -n +101)
+  mapfile -t old_files < <(find "$history_dir" -type f -name '*.txt' -printf '%T@ %p\n' | sort -rn | cut -d' ' -f2- | tail -n +101)
   ((${#old_files[@]} == 0)) || rm -f -- "${old_files[@]}"
 }
 
 open_history() {
   local index preview
   local -a entries=() labels=()
-  mapfile -t entries < <(find "$history_dir" -type f -printf '%T@ %p\n' | sort -rn | cut -d' ' -f2-)
+  mapfile -t entries < <(find "$history_dir" -type f -name '*.txt' -printf '%T@ %p\n' | sort -rn | cut -d' ' -f2-)
   ((${#entries[@]})) || { notify-send 'Clipboard' 'History is empty'; exit 0; }
   for entry in "${entries[@]}"; do
     preview="$(tr '\n\t' '  ' < "$entry" | sed 's/  */ /g' | cut -c1-110)"
     labels+=("$preview")
   done
-  index="$(printf '%s\n' "${labels[@]}" | rofi -dmenu -i -p 'Clipboard' -format i)"
+  index="$(printf '%s\n' "${labels[@]}" | rofi -dmenu -i -no-custom -p 'Clipboard' -format i \
+    -mesg 'Enter pastes into the previous app · Esc cancels' \
+    -theme-str 'entry { placeholder: "Search copied text…"; }')" || return 0
   [[ "$index" =~ ^[0-9]+$ ]] || exit 0
+  ((index < ${#entries[@]})) || return 0
   wl-copy < "${entries[$index]}"
   sleep 0.12
   send_paste || true
@@ -76,6 +81,6 @@ case "${1:-open}" in
   copy) send_copy ;;
   paste) send_paste ;;
   cut) "$wtype_bin" -M ctrl -k x -m ctrl ;;
-  clear) find "$history_dir" -type f -delete; notify-send 'Clipboard' 'History cleared' ;;
+  clear) find "$history_dir" -type f -name '*.txt' -delete; notify-send 'Clipboard' 'History cleared' ;;
   *) printf 'Usage: obsidian-clipboard {watch|status|store|open|copy|paste|cut|clear}\n' >&2; exit 2 ;;
 esac

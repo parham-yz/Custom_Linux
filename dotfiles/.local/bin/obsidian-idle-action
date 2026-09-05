@@ -49,7 +49,7 @@ suspend_system() {
   # Never auto-suspend into an unlocked Hyprland session. swaylock's system
   # package supplies the PAM policy needed for a secure resume.
   command -v swaylock >/dev/null || return 0
-  swaylock -f -c 0d0c0c
+  obsidian-lock
   sleep 0.4
   systemctl suspend
 }
