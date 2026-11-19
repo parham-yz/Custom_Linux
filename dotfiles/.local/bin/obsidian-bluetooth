@@ -11,6 +11,7 @@ runtime_dir="$runtime_base/obsidian-bluetooth-$UID"
 chmod 700 "$runtime_dir"
 rofi_pid_file="$runtime_dir/rofi.pid"
 mode="${1:-menu}"
+panel="${XDG_DATA_HOME:-$HOME/.local/share}/obsidian-bluetooth/panel.py"
 
 notice() {
   notify-send -a 'Bluetooth' -h "string:x-canonical-private-synchronous:$notify_id" \
@@ -200,7 +201,7 @@ interactive_pair() {
     return 1
   fi
   kitty --class org.obsidian.bluetooth --title "Bluetooth Pairing — $name" \
-    bash -lc 'printf "Pairing %s\nRespond to any PIN or passkey prompt below.\n\n" "$1"; timeout --foreground 125 bluetoothctl --agent KeyboardDisplay --timeout 120 pair "$1"; status=$?; if (( status == 0 )); then timeout --foreground 8 bluetoothctl --timeout 7 trust "$1"; timeout --foreground 35 bluetoothctl --timeout 30 connect "$1" || true; fi; printf "\nPress Enter to close…"; read -r; exit "$status"' _ "$mac" &
+    bash -lc 'printf "Pairing %s\nRespond to any PIN or passkey prompt below.\n\n" "$1"; timeout --foreground 120 bluetoothctl --agent KeyboardDisplay pair "$1"; status=$?; if (( status == 0 )); then "$2" --connect "$1"; status=$?; fi; printf "\nPress Enter to close…"; read -r; exit "$status"' _ "$mac" "$0" &
 }
 
 pair_device() {
@@ -214,20 +215,21 @@ pair_device() {
   error_file="$(mktemp "$runtime_dir/obsidian-bluetooth-error.XXXXXX" 2>/dev/null || mktemp /tmp/obsidian-bluetooth-error.XXXXXX)" || return 1
   chmod 600 "$error_file"
   notice 'Bluetooth' "Pairing with $name ($mac)…"
-  if timeout --foreground 50 bluetoothctl --agent NoInputNoOutput --timeout 45 pair "$mac" >"$error_file" 2>&1; then
+  if timeout --foreground 45 bluetoothctl --agent NoInputNoOutput pair "$mac" >"$error_file" 2>&1 &&
+    info="$(bt_quick info "$mac" 2>/dev/null || true)" &&
+    [[ "$(field_from_info Paired "$info")" == yes ]]; then
     bt_quick trust "$mac" >/dev/null 2>&1 || true
     rm -f -- "$error_file"
-    info="$(bt_quick info "$mac" 2>/dev/null || true)"
-    if [[ "$(field_from_info Connected "$info")" == yes ]]; then
-      notice 'Bluetooth paired and connected' "$name"
-      return 0
-    fi
-    notice 'Bluetooth paired' "$name is trusted, but is not connected yet"
+    # Pairing can leave only a temporary link, without connected audio profiles.
     connect_device "$mac" "$name"
     return
   fi
   error="$(sanitize <"$error_file")"
   rm -f -- "$error_file"
+  if [[ "$mode" == --pair ]]; then
+    printf '%s\n' "${error:-The device rejected pairing}" >&2
+    return 1
+  fi
   choice="$(printf '%s\n%s\n' '󰆍  Retry with PIN/passkey terminal' '󰜺  Cancel' |
     rofi_menu -dmenu -i -no-custom -click-to-exit -p 'Pairing failed' \
       -mesg "$(escape_markup "$name ($mac): ${error:-The device rejected automatic pairing}")" -theme "$theme")" || return 1
@@ -235,18 +237,24 @@ pair_device() {
 }
 
 connect_device() {
-  local mac="$1" name="$2" error_file error
+  local mac="$1" name="$2" error_file error info
   error_file="$(mktemp "$runtime_dir/obsidian-bluetooth-error.XXXXXX" 2>/dev/null || mktemp /tmp/obsidian-bluetooth-error.XXXXXX)" || return 1
   chmod 600 "$error_file"
   notice 'Bluetooth' "Connecting to $name…"
-  if timeout --foreground 35 bluetoothctl --timeout 30 connect "$mac" >"$error_file" 2>&1; then
-    rm -f -- "$error_file"
-    notice 'Bluetooth connected' "$name"
-    return 0
+  if timeout --foreground 20 bluetoothctl connect "$mac" >"$error_file" 2>&1; then
+    # Verify BlueZ state rather than trusting the command's exit code alone.
+    info="$(bt_quick info "$mac" 2>/dev/null || true)"
+    if [[ "$(field_from_info Connected "$info")" == yes ]]; then
+      rm -f -- "$error_file"
+      notice 'Bluetooth connected' "$name"
+      return 0
+    fi
   fi
   error="$(sanitize <"$error_file")"
   rm -f -- "$error_file"
-  notice 'Could not connect' "${error:-$name did not respond}"
+  [[ "$error" == *'Failed to connect:'* ]] || error="$name did not connect; check that it is on and not connected to another device"
+  notice 'Could not connect' "$error"
+  printf '%s\n' "$error" >&2
   return 1
 }
 
@@ -378,11 +386,39 @@ show_menu() {
 }
 
 case "$mode" in
+  --connect|--pair|--pair-pin)
+    mac="${2:-}"
+    valid_mac "$mac" || exit 2
+    ensure_available || exit 1
+    [[ "$(controller_powered)" == yes ]] || power_on || exit 1
+    info="$(bt_quick info "$mac" 2>/dev/null || true)"
+    name="$(field_from_info Alias "$info")"
+    if [[ "$mode" == --pair-pin ]]; then
+      interactive_pair "$mac" "${name:-$mac}"
+      exit $?
+    fi
+    if [[ "$mode" == --pair ]]; then
+      pair_device "$mac" "${name:-$mac}"
+      exit $?
+    fi
+    if [[ "$(field_from_info Paired "$info")" != yes ]]; then
+      notice 'Pairing required' 'Put the device in pairing mode and pair it from the Bluetooth menu'
+      exit 1
+    fi
+    bt_quick trust "$mac" >/dev/null 2>&1 || true
+    connect_device "$mac" "${name:-$mac}"
+    ;;
+  --power)
+    [[ "${2:-}" == on || "${2:-}" == off ]] || exit 2
+    ensure_available || exit 1
+    if [[ "$2" == on ]]; then power_on; else power_off; fi
+    ;;
   --status)
     if ! ensure_available >/dev/null; then printf 'unavailable\n'; exit 1; fi
     [[ "$(controller_powered)" == yes ]] && printf 'on\n' || printf 'off\n'
     ;;
   --toggle)
+    [[ ! -f "$panel" ]] || exec /usr/bin/python3 "$panel" --toggle
     ensure_available || exit 1
     if [[ "$(controller_powered)" == yes ]]; then
       confirm_power_off && power_off
@@ -396,12 +432,14 @@ case "$mode" in
     run_scan
     ;;
   --refresh)
+    [[ ! -f "$panel" ]] || exec /usr/bin/python3 "$panel" --scan
     ensure_available || exit 1
     [[ "$(controller_powered)" == yes ]] || power_on || exit 1
     run_scan || true
     exec "$0"
     ;;
   menu)
+    [[ ! -f "$panel" ]] || exec /usr/bin/python3 "$panel"
     ensure_available || exit 1
     close_existing_menu && exit 0
     if [[ "$(controller_powered)" != yes ]]; then
@@ -417,7 +455,7 @@ case "$mode" in
     show_menu
     ;;
   *)
-    printf 'Usage: obsidian-bluetooth [--status|--toggle|--scan|--refresh]\n' >&2
+    printf 'Usage: obsidian-bluetooth [--status|--toggle|--scan|--refresh|--connect MAC|--pair MAC|--pair-pin MAC|--power on|off]\n' >&2
     exit 2
     ;;
 esac

@@ -1,0 +1,12 @@
+[Unit]
+Description=Check Asahi display audio on monitor connection
+After=wireplumber.service pipewire-pulse.service
+PartOf=wireplumber.service
+
+[Service]
+ExecStart=%h/.local/bin/obsidian-monitor-audio
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=wireplumber.service

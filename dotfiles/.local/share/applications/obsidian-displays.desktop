@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Displays
+Comment=Arrange screens, adjust text size, resolution, rotation and mirroring
+Exec=obsidian-display-settings
+Icon=preferences-desktop-display
+Terminal=false
+Categories=Settings;HardwareSettings;
+Keywords=monitor;screen;resolution;scale;mirror;display;
+StartupNotify=true
+StartupWMClass=obsidian-displays

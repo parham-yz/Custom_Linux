@@ -1,0 +1,35 @@
+.obsidian-panel {
+  background: {{bg}}; color: {{fg}};
+  border: 1px solid {{border}}; border-radius: 0;
+  box-shadow: none;
+  font-family: "JetBrainsMono Nerd Font", monospace; font-size: 12px;
+}
+.obsidian-panel .title { font-size: 12px; font-weight: 600; color: {{accent}}; }
+.obsidian-panel .muted { color: {{muted}}; font-size: 10px; }
+.obsidian-panel .strong { font-weight: 400; }
+.obsidian-panel button {
+  color: {{fg}}; background: transparent; background-image: none;
+  border: 1px solid transparent; border-radius: 0;
+  box-shadow: none; text-shadow: none; padding: 5px 8px; min-height: 16px;
+}
+.obsidian-panel button:hover { background: {{panel}}; }
+.obsidian-panel button:focus { border-color: {{accent}}; }
+.obsidian-panel button:disabled { opacity: 0.5; }
+.obsidian-panel button.selected { background: {{selected}}; color: {{accent}}; }
+.obsidian-panel button.icon-button { padding: 2px; min-width: 16px; }
+.obsidian-panel button.quiet { color: {{muted}}; border-top-color: {{border}}; padding: 7px; font-size: 11px; }
+.obsidian-panel button.quiet:hover { color: {{accent}}; background: {{panel}}; }
+.obsidian-panel .feedback { color: {{muted}}; padding: 6px; font-size: 11px; }
+.obsidian-panel separator { background: alpha({{border}}, 0.6); min-height: 1px; }
+
+.obsidian-panel entry { background: transparent; color: {{fg}}; border: 0; border-bottom: 1px solid {{border}}; border-radius: 0; padding: 6px; box-shadow: none; caret-color: {{accent}}; font-size: 12px; }
+.obsidian-panel entry:focus { border-bottom-color: {{accent}}; }
+.obsidian-panel .section-title { color: {{muted}}; font-size: 10px; font-weight: 400; padding: 4px 6px 0; }
+.obsidian-panel button.primary { background: {{selected}}; color: {{accent}}; }
+.obsidian-panel button.primary:hover { background: {{panel}}; border-color: {{accent}}; }
+.obsidian-panel switch { background: {{panel}}; border: 1px solid {{border}}; border-radius: 0; min-width: 30px; min-height: 16px; }
+.obsidian-panel switch:checked { background: {{selected}}; border-color: {{accent}}; }
+.obsidian-panel switch slider { background: {{muted}}; border: 0; border-radius: 0; min-width: 12px; min-height: 12px; margin: 2px; box-shadow: none; }
+.obsidian-panel switch:checked slider { background: {{accent}}; }
+.obsidian-panel scrollbar { background: transparent; }
+.obsidian-panel scrollbar slider { background: {{border}}; border-radius: 0; min-width: 3px; }

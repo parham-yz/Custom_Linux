@@ -4,6 +4,7 @@ set -euo pipefail
 state_root="${XDG_STATE_HOME:-$HOME/.local/state}/obsidian-ember"
 daemon_pid="$state_root/idle-daemon.pid"
 inhibit_pid="$state_root/toggles/inhibit.pid"
+ac_path="${OBSIDIAN_AC_ONLINE_PATH:-/sys/class/power_supply/macsmc-ac/online}"
 mkdir -p "$state_root"
 
 daemon_running() {
@@ -32,19 +33,30 @@ system_busy() {
   awk -v load="$load" -v cores="$cores" 'BEGIN {exit !(load > cores * 0.45)}'
 }
 
+work_inhibited() {
+  local locks
+  # Fail closed if login1 is unavailable: never interrupt an active job.
+  locks="$(busctl --system --json=short call org.freedesktop.login1 \
+    /org/freedesktop/login1 org.freedesktop.login1.Manager ListInhibitors)" || return 0
+  if ! jq -e '.data[0] | type == "array"' >/dev/null <<< "$locks"; then return 0; fi
+  jq -e 'any(.data[0][]; (.[3] == "block" or .[3] == "block-weak") and
+    (.[0] | split(":") | any(. == "idle" or . == "sleep")))' >/dev/null <<< "$locks"
+}
+
 screen_off() {
   inhibited && return 0
   media_playing && return 0
-  hyprctl dispatch dpms off >/dev/null 2>&1 || true
+  "$HOME/.local/bin/obsidian-hyprctl" dispatch dpms off >/dev/null 2>&1 || true
 }
 
 screen_on() {
-  hyprctl dispatch dpms on >/dev/null 2>&1 || true
+  "$HOME/.local/bin/obsidian-hyprctl" dispatch dpms on >/dev/null 2>&1 || true
 }
 
 suspend_system() {
   inhibited && return 0
   media_playing && return 0
+  work_inhibited && return 0
   system_busy && return 0
   # Never auto-suspend into an unlocked Hyprland session. swaylock's system
   # package supplies the PAM policy needed for a secure resume.
@@ -55,18 +67,24 @@ suspend_system() {
 }
 
 daemon() {
-  local self="$0"
+  local self="$0" screen_seconds=300 sleep_seconds=1200
+  if [[ -r "$ac_path" && "$(<"$ac_path")" == 0 ]]; then
+    screen_seconds=120
+    sleep_seconds=600
+  fi
   if daemon_running && [[ "$(<"$daemon_pid")" != "$$" ]]; then
     exit 0
   fi
   printf '%s\n' "$$" > "$daemon_pid"
   trap 'rm -f "$daemon_pid"' EXIT
   swayidle -w \
-    timeout 300 "$self screen-off" \
+    timeout 60 'obsidian-keyboard-light idle' \
+      resume 'obsidian-keyboard-light active' \
+    timeout "$screen_seconds" "$self screen-off" \
       resume "$self screen-on" \
-    timeout 1200 "$self suspend" \
-    before-sleep "$self screen-off" \
-    after-resume "$self screen-on"
+    timeout "$sleep_seconds" "$self suspend" \
+    before-sleep "obsidian-keyboard-light idle; $self screen-off" \
+    after-resume "obsidian-keyboard-light active; $self screen-on"
 }
 
 case "${1:-daemon}" in

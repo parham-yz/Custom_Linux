@@ -1,4 +1,5 @@
 {
+  "output": "eDP-1",
   "layer": "top",
   "position": "top",
   "height": 30,
@@ -22,10 +23,12 @@
     "custom/status",
     "custom/hermes",
     "custom/activity",
+    "custom/capture",
     "pulseaudio",
     "bluetooth",
     "network",
     "backlight",
+    "custom/brightness-hold",
     "battery",
     "tray"
   ],
@@ -35,6 +38,12 @@
     "on-click": "obsidian-menu",
     "tooltip-format": "Desktop menu · Super+Alt+Space\nRight click: themes",
     "on-click-right": "obsidian-theme switch"
+  },
+  "custom/capture": {
+    "format": "󰄀",
+    "tooltip-format": "Screenshot · Super+Shift+S\nClick: capture menu · Right click: select region",
+    "on-click": "obsidian-menu capture",
+    "on-click-right": "obsidian-capture region"
   },
   "hyprland/workspaces": {
     "format": "{icon}",
@@ -71,7 +80,9 @@
     "exec": "obsidian-weather bar",
     "interval": 1800,
     "tooltip": true,
-    "on-click": "obsidian-weather notice",
+    "on-click": "obsidian-weather menu",
+    "signal": 9,
+    "exec-on-event": false,
     "return-type": "json"
   },
   "custom/updates": {
@@ -155,6 +166,12 @@
     "on-scroll-up": "obsidian-osd brightness-up 5",
     "on-scroll-down": "obsidian-osd brightness-down 5"
   },
+  "custom/brightness-hold": {
+    "exec": "obsidian-auto-brightness bar",
+    "return-type": "json",
+    "interval": 5,
+    "on-click": "obsidian-auto-brightness hold-toggle"
+  },
   "battery": {
     "states": {
       "warning": 30,
@@ -175,9 +192,10 @@
       "󰂂",
       "󰁹"
     ],
-    "tooltip-format": "{timeTo}  •  {power:.1f} W",
-    "on-click": "obsidian-power notice",
-    "on-click-right": "obsidian-power toggle"
+    "tooltip-format": "{timeTo}  •  {power:.1f} W\nClick: power modes · Middle click: low / balanced",
+    "on-click": "obsidian-power menu",
+    "on-click-right": "obsidian-power menu",
+    "on-click-middle": "obsidian-power toggle"
   },
   "tray": {
     "icon-size": 16,

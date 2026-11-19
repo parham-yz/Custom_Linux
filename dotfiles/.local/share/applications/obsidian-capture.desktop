@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Screenshot
+Comment=Capture a region, window, or screen
+Exec=obsidian-menu capture
+Icon=camera-photo
+Terminal=false
+Categories=Utility;
+Keywords=screenshot;capture;screen;region;

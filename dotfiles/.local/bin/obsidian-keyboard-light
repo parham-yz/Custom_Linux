@@ -1,0 +1,161 @@
+#!/usr/bin/python3
+"""Ambient keyboard lighting with a short manual override and idle dimming."""
+import argparse
+from contextlib import contextmanager
+import fcntl
+import json
+import math
+import os
+from pathlib import Path
+import subprocess
+import time
+
+STATE = Path(os.environ.get('XDG_STATE_HOME', Path.home()/'.local/state'))/'obsidian-ember/keyboard-light'
+RUNTIME = Path(os.environ.get('XDG_RUNTIME_DIR', '/tmp'))/'obsidian-keyboard-light'
+DEVICE = 'kbd_backlight'
+LED = Path('/sys/class/leds')/DEVICE
+
+
+def target_for_lux(lux):
+    if not math.isfinite(lux) or lux < 0:
+        raise ValueError('Invalid ambient light reading')
+    points = [(0, 60), (5, 50), (20, 30), (60, 12), (120, 0)]
+    for (lo, left), (hi, right) in zip(points, points[1:]):
+        if lux <= hi:
+            return round(left + (lux-lo)/(hi-lo)*(right-left))
+    return 0
+
+
+def read_state():
+    try:
+        return json.loads((RUNTIME/'state.json').read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def save_state(state):
+    temporary = RUNTIME/'state.tmp'
+    temporary.write_text(json.dumps(state))
+    temporary.chmod(0o600)
+    temporary.replace(RUNTIME/'state.json')
+
+
+@contextmanager
+def locked():
+    RUNTIME.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with (RUNTIME/'control.lock').open('a') as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        yield
+
+
+def brightness():
+    current = int((LED/'brightness').read_text())
+    maximum = int((LED/'max_brightness').read_text())
+    return round(100*current/maximum)
+
+
+def write_brightness(value):
+    subprocess.run(['brightnessctl', '-q', '-d', DEVICE, 'set', f'{value}%'],
+                   check=True, capture_output=True, timeout=3)
+
+
+def ambient_lux():
+    result = subprocess.run([str(Path(__file__).with_name('obsidian-auto-brightness')), 'lux'],
+                            capture_output=True, text=True, check=True, timeout=3)
+    value = float(result.stdout.strip())
+    if not math.isfinite(value) or value < 0:
+        raise ValueError('Invalid ambient light reading')
+    return value
+
+
+class Controller:
+    def __init__(self):
+        self.filtered = None
+
+    def tick(self, now=None, immediate=False):
+        now = time.time() if now is None else now
+        with locked():
+            if (STATE/'disabled').exists():
+                self.filtered = None
+                return
+            state = read_state()
+            current = brightness()
+            if state.get('idle'):
+                self.filtered = None
+                if current:
+                    write_brightness(0)
+                return
+            if state.get('manual_until', 0) > now:
+                target = state['manual_level']
+                if target != current:
+                    write_brightness(target)
+                self.filtered = None
+                return
+            lux = ambient_lux()
+            self.filtered = lux if self.filtered is None else .7*self.filtered + .3*lux
+            target = target_for_lux(self.filtered)
+            if abs(target-current) < 3 and not (target == 0 and current):
+                return
+            next_level = target if immediate else max(current-8, min(current+8, target))
+            write_brightness(next_level)
+
+
+def control(action):
+    with locked():
+        state = read_state()
+        if action in ('up', 'down'):
+            value = max(0, min(100, brightness() + (10 if action == 'up' else -10)))
+            write_brightness(value)
+            state.update(manual_level=value, manual_until=time.time()+120, idle=False)
+            save_state(state)
+            subprocess.run(['notify-send', '-a', 'Obsidian OSD', '-h',
+                            'string:x-canonical-private-synchronous:obsidian-keyboard-light',
+                            '-h', f'int:value:{value}', 'Keyboard light', f'{value}%'], check=False)
+        elif action in ('idle', 'active'):
+            state['idle'] = action == 'idle'
+            save_state(state)
+        else:
+            STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
+            disabled = STATE/'disabled'
+            enable = action == 'enable' or (action == 'toggle' and disabled.exists())
+            if enable:
+                disabled.unlink(missing_ok=True)
+                state.pop('manual_until', None)
+                save_state(state)
+            else:
+                disabled.touch(mode=0o600)
+            subprocess.run(['notify-send', 'Automatic keyboard light', 'Enabled' if enable else 'Disabled'], check=False)
+    if action not in ('up', 'down'):
+        Controller().tick(immediate=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('action', choices=('daemon', 'once', 'status', 'up', 'down', 'idle', 'active',
+                                           'enable', 'disable', 'toggle'), nargs='?', default='status')
+    action = parser.parse_args().action
+    if action == 'daemon':
+        controller = Controller()
+        previous_error = None
+        while True:
+            try:
+                controller.tick()
+                previous_error = None
+            except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
+                kind = type(exc).__name__
+                if kind != previous_error:
+                    print('Keyboard lighting unavailable; will retry:', kind, flush=True)
+                previous_error = kind
+            time.sleep(2 if previous_error is None else 10)
+    elif action == 'status':
+        print('Automatic keyboard light:', 'off' if (STATE/'disabled').exists() else 'on')
+        print('Keyboard brightness:', str(brightness())+'%')
+        print('Ambient light:', ambient_lux(), 'lux')
+    elif action == 'once':
+        Controller().tick()
+    else:
+        control(action)
+
+
+if __name__ == '__main__':
+    main()

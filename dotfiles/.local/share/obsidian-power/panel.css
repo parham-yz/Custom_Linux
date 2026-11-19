@@ -1,0 +1,8 @@
+#power-backdrop { background: transparent; }
+#power-panel .battery-card { background: transparent; padding: 2px 6px 7px; }
+#power-panel .percentage { font-size: 18px; font-weight: 500; }
+#power-panel progressbar trough { background: {{panel}}; border-radius: 0; min-height: 2px; border: 0; }
+#power-panel progressbar progress { background: {{accent}}; border-radius: 0; min-height: 2px; border: 0; }
+#power-panel .mode-group { background: transparent; padding: 0; }
+#power-panel button.mode-row { padding: 7px 8px; }
+#power-panel .mode-icon { padding: 0; }

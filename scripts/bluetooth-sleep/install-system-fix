@@ -1,0 +1,19 @@
+#!/usr/bin/bash
+set -euo pipefail
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+source_dir=$(cd -- "$(dirname -- "$0")" && pwd)
+[[ $EUID == 0 ]] || { printf 'Administrator authentication is required.\n' >&2; exit 1; }
+[[ ! -e /usr/local/libexec/obsidian-bluetooth-sleep ]] || { printf 'Recovery helper already exists; refusing to overwrite.\n' >&2; exit 1; }
+[[ ! -e /etc/systemd/system/obsidian-bluetooth-sleep.service ]] || { printf 'Recovery service already exists; refusing to overwrite.\n' >&2; exit 1; }
+bash -n "$source_dir/obsidian-bluetooth-sleep"
+install -d -m 755 /usr/local/libexec
+install -o root -g root -m 755 "$source_dir/obsidian-bluetooth-sleep" /usr/local/libexec/obsidian-bluetooth-sleep
+install -o root -g root -m 644 "$source_dir/obsidian-bluetooth-sleep.service" /etc/systemd/system/obsidian-bluetooth-sleep.service
+restorecon /usr/local/libexec/obsidian-bluetooth-sleep /etc/systemd/system/obsidian-bluetooth-sleep.service
+systemd-analyze verify /etc/systemd/system/obsidian-bluetooth-sleep.service
+systemctl daemon-reload
+systemctl enable obsidian-bluetooth-sleep.service
+printf 'Installed sleep recovery. Testing the driver unload/reload sequence now.\n'
+/usr/local/libexec/obsidian-bluetooth-sleep prepare
+/usr/local/libexec/obsidian-bluetooth-sleep restore
+printf 'Bluetooth sleep recovery installed and its driver sequence completed.\n'

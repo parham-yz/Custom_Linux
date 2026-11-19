@@ -1,0 +1,15 @@
+#displays { background: {{bg}}; color: {{fg}}; font-family: sans-serif; font-size: 13px; }
+#displays headerbar { background: {{panel}}; color: {{fg}}; border-bottom: 1px solid {{border}}; box-shadow: none; }
+#displays .title { font-weight: 700; font-size: 16px; }
+#displays .subtitle, #displays .muted { color: {{muted}}; font-size: 12px; }
+#displays .screen-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+#displays .settings-card { background: {{panel}}; border: 1px solid {{border}}; border-radius: 10px; padding: 16px; }
+#displays button { background: {{panel}}; color: {{fg}}; border: 1px solid {{border}}; border-radius: 6px; padding: 6px 12px; box-shadow: none; text-shadow: none; }
+#displays button:hover { background: {{selected}}; }
+#displays button:checked, #displays button.primary { background: {{selected}}; color: {{accent}}; border-color: {{accent}}; }
+#displays button:disabled { opacity: 0.45; }
+#displays button:focus { border-color: {{accent}}; }
+#displays combobox button { background: {{bg}}; padding: 4px 10px; }
+#displays scale highlight { background: {{accent}}; }
+#displays scale trough { background: {{border}}; min-height: 4px; }
+#displays scale slider { background: {{fg}}; border: none; min-width: 14px; min-height: 14px; }

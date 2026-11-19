@@ -61,7 +61,7 @@ apply_background() {
   printf '%s\n' "$wallpaper" > "$state_root/current-wallpaper"
   pkill -x swaybg 2>/dev/null || true
   printf -v quoted '%q' "$wallpaper"
-  hyprctl dispatch exec "swaybg -i $quoted -m fill" >/dev/null 2>&1 || true
+  "$HOME/.local/bin/obsidian-hyprctl" dispatch exec "swaybg -i $quoted -m fill" >/dev/null 2>&1 || true
 }
 
 set_theme() {
@@ -88,7 +88,7 @@ set_theme() {
   if command -v obsidian-toggle >/dev/null; then obsidian-toggle reapply; fi
   pkill -SIGUSR2 waybar 2>/dev/null || true
   if ! pgrep -x waybar >/dev/null; then
-    hyprctl dispatch exec waybar >/dev/null 2>&1 || true
+    "$HOME/.local/bin/obsidian-hyprctl" dispatch exec waybar >/dev/null 2>&1 || true
   fi
   makoctl reload 2>/dev/null || true
   # Kitty documents SIGUSR1 as a configuration reload; running shells stay open.

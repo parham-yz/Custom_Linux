@@ -1,0 +1,174 @@
+#!/usr/bin/python3
+"""Offer the Asahi display sink only while its link can play stereo audio."""
+
+import json
+import logging
+from pathlib import Path
+import subprocess
+import tempfile
+import time
+
+import pyudev
+
+
+CARD = "alsa_card.platform-238334000.audio-controller"
+PCM = Path("/proc/asound/DisplayPort/pcm0p/sub0/status")
+SILENCE = bytes(48000 * 2 * 2 * 2)  # two seconds of stereo S16LE
+RETRY_DELAYS = (2, 6, 15)
+
+
+def run(*args, data=None, timeout=3):
+    return subprocess.run(args, input=data, capture_output=True, check=True,
+                          timeout=timeout).stdout.decode()
+
+
+def connected():
+    if not any(p.read_text().strip() == "connected"
+               for p in Path("/sys/class/drm").glob("card*-DP-*/status")):
+        return False
+    jack = run("amixer", "-c", "DisplayPort", "cget", "iface=CARD,name=HDMI/DP Jack")
+    return "values=on" in jack
+
+
+def set_profile(profile):
+    run("pactl", "set-card-profile", CARD, profile)
+
+
+def check_display_stream(sink_name):
+    # A PulseAudio drain can succeed even when ALSA fails to start the PCM.
+    # Verify that frames actually leave the hardware buffer during the test.
+    with tempfile.TemporaryFile() as samples:
+        samples.write(SILENCE)
+        samples.seek(0)
+        command = ["pacat", "--playback", "--raw", "--latency-msec=80",
+                   "--rate=48000", "--channels=2", "--format=s16le",
+                   "--device=" + sink_name]
+        with subprocess.Popen(command, stdin=samples) as stream:
+            deadline = time.monotonic() + 5
+            first = None
+            advanced = False
+            try:
+                while stream.poll() is None:
+                    pointer = hardware_pointer()
+                    if pointer is not None:
+                        if first is None:
+                            first = pointer
+                        elif pointer - first >= 12000:
+                            advanced = True
+                    if time.monotonic() >= deadline:
+                        raise RuntimeError("display playback timed out")
+                    time.sleep(0.1)
+                if stream.returncode or not advanced:
+                    raise RuntimeError("display did not consume the stereo test")
+            finally:
+                if stream.poll() is None:
+                    stream.kill()
+
+
+def enable():
+    cards = json.loads(run("pactl", "-f", "json", "list", "cards"))
+    card = next(c for c in cards if c["name"] == CARD)
+    # HiFi can be missing if ALSA probed the device with the cable unplugged.
+    profile = "HiFi" if "HiFi" in card["profiles"] else "pro-audio"
+    if card["active_profile"] != profile:
+        set_profile(profile)
+    for _ in range(15):
+        sinks = json.loads(run("pactl", "-f", "json", "list", "sinks"))
+        for sink in sinks:
+            if sink["name"].startswith(CARD.replace("alsa_card.", "alsa_output.") + "."):
+                check_display_stream(sink["name"])
+                return sink["index"]
+        time.sleep(0.1)
+    raise RuntimeError("display sink did not appear")
+
+
+def hardware_pointer():
+    fields = {}
+    for line in PCM.read_text().splitlines():
+        key, sep, value = line.partition(":")
+        if sep:
+            fields[key.strip()] = value.strip()
+    if fields.get("state") == "RUNNING" and "hw_ptr" in fields:
+        return int(fields["hw_ptr"])
+    return None
+
+
+def playback_progress(sink_index):
+    pointer = hardware_pointer()
+    if pointer is not None:
+        return pointer
+    streams = json.loads(run("pactl", "-f", "json", "list", "sink-inputs"))
+    if any(s["sink"] == sink_index and not s["corked"] for s in streams):
+        return "waiting for hardware"
+    return None
+
+
+def main():
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    events = pyudev.Monitor.from_netlink(pyudev.Context())
+    events.filter_by("drm")
+    events.start()
+    state = None
+    failures = 0
+    retry_at = 0
+    last_pointer = None
+    last_progress = 0
+    pending_off = False
+    while True:
+        try:
+            if not PCM.exists():
+                state = "absent"
+                failures = 0
+                retry_at = 0
+                pending_off = False
+            elif not connected():
+                pending_off |= state != "disconnected"
+                state = "disconnected"
+                failures = 0
+                retry_at = 0
+            elif not pending_off and state != "ready" and time.monotonic() >= retry_at:
+                # Give the display firmware a moment to finish link training.
+                time.sleep(0.5)
+                if connected():
+                    sink_index = enable()
+                    state = "ready"
+                    last_pointer = None
+                    last_progress = time.monotonic()
+                    ready_since = last_progress
+                    logging.info("Display stereo playback checks passed")
+            if state == "ready":
+                if time.monotonic() - ready_since > 60:
+                    failures = 0
+                pointer = playback_progress(sink_index)
+                if pointer is not None and pointer == last_pointer:
+                    if time.monotonic() - last_progress > 3:
+                        raise RuntimeError("display playback clock stopped")
+                else:
+                    last_progress = time.monotonic()
+                last_pointer = pointer
+        except (OSError, ValueError, StopIteration, subprocess.SubprocessError, RuntimeError) as error:
+            logging.warning("Withdrawing display output: %s", error)
+            pending_off = True
+            state = "failed"
+            if failures < len(RETRY_DELAYS):
+                delay = RETRY_DELAYS[failures]
+                logging.info("Retrying display audio in %s seconds", delay)
+                retry_at = time.monotonic() + delay
+                failures += 1
+            else:
+                logging.info("Keeping fallback until the next connection")
+                retry_at = float("inf")
+            last_pointer = None
+        if pending_off:
+            try:
+                set_profile("off")
+                pending_off = False
+            except (OSError, subprocess.SubprocessError):
+                # The sound server can restart during fallback. Finish taking
+                # the card offline before testing another display stream.
+                pass
+        events.poll(timeout=8 if state in ("disconnected", "absent") and not pending_off else 2)
+
+
+if __name__ == "__main__":
+    main()

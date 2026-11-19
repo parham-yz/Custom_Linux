@@ -1,0 +1,53 @@
+#!/usr/bin/bash
+# Work around Broadcom BCM4387 controller hangs across suspend on this Mac.
+set -eu
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export LC_ALL=C
+state=/run/obsidian-bluetooth-sleep
+device=/sys/bus/pci/devices/0000:01:00.1
+
+case "${1:-}" in
+  prepare)
+    [[ -L "$device/driver" ]] || exit 0
+    [[ "$(basename "$(readlink "$device/driver")")" == hci_bcm4377 ]] || exit 0
+    [[ "$(cat "$device/vendor")" == 0x14e4 && "$(cat "$device/device")" == 0x5f71 ]] || exit 0
+    install -d -m 700 "$state"
+    if ! timeout 5 bluetoothctl show >"$state/controller" 2>/dev/null ||
+      ! grep -q 'Powered: \(yes\|no\)' "$state/controller"; then
+      logger -t obsidian-bluetooth 'Could not read adapter power state; leaving driver unchanged'
+      exit 0
+    fi
+    timeout 5 bluetoothctl devices Connected >"$state/devices" 2>/dev/null || true
+    # Mark before unloading so restore also runs if unloading reports a failure.
+    touch "$state/active"
+    modprobe -r hci_bcm4377 || logger -t obsidian-bluetooth 'Bluetooth driver unload failed; will retry initialization after sleep'
+    ;;
+  restore)
+    [[ -f "$state/active" ]] || exit 0
+    modprobe hci_bcm4377
+    ready=no
+    for attempt in {1..20}; do
+      if timeout 2 bluetoothctl list 2>/dev/null | grep -q '^Controller '; then
+        ready=yes
+        break
+      fi
+      sleep 0.5
+    done
+    if [[ "$ready" != yes ]]; then
+      logger -t obsidian-bluetooth 'Bluetooth controller did not reappear after driver reload'
+      exit 1
+    fi
+    if grep -q 'Powered: yes' "$state/controller"; then
+      timeout 8 bluetoothctl power on
+      while read -r kind mac name; do
+        [[ "$kind" == Device && "$mac" =~ ^([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}$ ]] || continue
+        timeout 15 bluetoothctl connect "$mac" || logger -t obsidian-bluetooth "Device $mac did not reconnect after sleep"
+      done <"$state/devices"
+    else
+      timeout 8 bluetoothctl power off
+    fi
+    rm -f "$state/active" "$state/controller" "$state/devices"
+    logger -t obsidian-bluetooth 'Bluetooth driver restored after sleep'
+    ;;
+  *) exit 2 ;;
+esac

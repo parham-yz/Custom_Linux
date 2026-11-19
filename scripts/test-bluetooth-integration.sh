@@ -8,6 +8,7 @@ mkdir -p "$TMP/bin" "$TMP/runtime" "$TMP/config/rofi"
 export PATH="$TMP/bin:$ROOT/dotfiles/.local/bin:/usr/bin:/bin"
 export XDG_RUNTIME_DIR="$TMP/runtime"
 export XDG_CONFIG_HOME="$TMP/config"
+export XDG_DATA_HOME="$TMP/data" # Also exercise the Rofi fallback without native panel files.
 export BT_POWERED=no
 export BT_LOG="$TMP/bluetooth.log"
 export NOTIFY_LOG="$TMP/notify.log"

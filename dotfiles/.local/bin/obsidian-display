@@ -20,5 +20,5 @@ case "${1:-next}" in
 esac
 
 scale="${scales[$index]}"
-hyprctl keyword monitor "$output,preferred,auto,$scale"
+"$HOME/.local/bin/obsidian-hyprctl" keyword monitor "$output,preferred,auto,$scale"
 notify-send 'Display scale' "$scale • notch reserve remains centered"

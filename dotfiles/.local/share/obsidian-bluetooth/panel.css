@@ -1,0 +1,10 @@
+#bluetooth-backdrop { background: transparent; }
+#bluetooth-panel .device-group { background: transparent; padding: 0; }
+#bluetooth-panel .device-row { padding: 6px; }
+#bluetooth-panel .device-name { font-weight: 400; }
+#bluetooth-panel .device-icon { color: {{muted}}; padding: 0; }
+#bluetooth-panel .device-icon-active { color: {{accent}}; padding: 0; }
+#bluetooth-panel .connected-status { color: {{accent}}; font-size: 10px; }
+#bluetooth-panel button.quiet { border: 1px solid transparent; padding: 5px 8px; }
+#bluetooth-panel .empty { color: {{muted}}; font-size: 11px; padding: 12px 6px; }
+#bluetooth-panel .error { color: {{fg}}; font-size: 11px; }

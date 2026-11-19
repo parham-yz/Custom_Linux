@@ -6,6 +6,11 @@ Snapshot created: `2026-08-13T09:36:52+02:00`
 
 ## Current appearance settings
 
+The default control UI uses compact monospace text, square borders, and flat
+selection rows. Power, Bluetooth, Wi-Fi, the launcher, bar, and notifications
+share this design while retaining the selected colour palette. See the
+[control-panel style](UI_POLISH.md#default-control-panel-style-october-2026).
+
 | Setting | Value |
 |---|---:|
 | Desktop compositor | Hyprland 0.56.0 |
@@ -21,6 +26,13 @@ Snapshot created: `2026-08-13T09:36:52+02:00`
 | Snapshot default theme | `obsidian-ember` |
 
 The bar groups controls into two quiet surfaces and preserves the central notch clearance. Its top margin is 5 px, while the outer and inner window gaps are both 4 px. The [desktop polish guide](UI_POLISH.md) includes dark/light previews, interaction fixes, and installation instructions.
+
+## Display settings
+
+Open **Displays** from the app launcher or **OMA → Displays** to arrange monitors,
+set resolution, refresh rate, text size and rotation, or mirror a screen.
+Changes have a 20-second Keep/Revert confirmation with an independent recovery
+worker. See [display controls and recovery](DISPLAY_SETTINGS.md).
 
 ## Repository contents
 
@@ -115,6 +127,45 @@ Omarchy-style automatic approval and provider network checks are separate
 opt-ins. See [AI_AGENT_INTEGRATION.md](AI_AGENT_INTEGRATION.md) for usage, privacy details,
 provider limits, tests, and the official research sources.
 
+## Automatic keyboard lighting
+
+The keyboard light follows the ambient-light sensor: brighter in dark rooms,
+gradually dimmer as the room brightens, and off in bright light. It starts at login
+and operates independently of the screen-brightness hold.
+
+After 60 seconds without input, the keyboard light switches off and returns when
+you interact again. Keyboard-brightness keys still work; a manual adjustment lasts
+two minutes before automatic control resumes. **Quick settings › Keyboard lighting**
+toggles automation. Turning automation off leaves the current level under manual
+control.
+
+The user service is `obsidian-keyboard-light.service`; run
+`obsidian-keyboard-light status` to inspect the brightness and sensor reading.
+
+## Brightness hold
+
+Click the small lightbulb beside the top-bar brightness indicator to hold the
+current level for one hour. It changes to a highlighted lock with the minutes
+remaining. Click again to resume automatic adjustment early; otherwise it resumes
+when the hour ends, including after suspend. Manual brightness controls still
+work, and their usual short pause does not shorten the one-hour hold.
+
+The hold uses the existing ambient-light service and survives a service restart.
+It ends on logout or reboot. If automatic brightness is disabled, enable it in
+Quick settings first.
+
+## Screenshots
+
+Click the camera icon in the top bar for the themed Capture menu, or search for
+**Screenshot** in the application launcher. **Super+Shift+S** selects a region;
+**Super+Ctrl+Shift+S** captures the full screen. On the MacBook keyboard, Super is
+the Command key. The original Print Screen shortcuts and **Super+Ctrl+C** capture
+menu also remain available.
+
+Screenshots are saved in `~/Pictures/Screenshots` and copied as PNG images to the
+clipboard. The menu includes window capture, OCR, color picking, screen recording,
+and a shortcut to the screenshots folder. Press Escape to cancel a region selection.
+
 ## Wi-Fi dropdown
 
 Click the persistent Wi-Fi icon in Waybar to open the custom network menu. The
@@ -178,6 +229,9 @@ The configuration is tailored to Fedora Asahi Remix on Apple Silicon and a 2560�
 /usr/bin/python3 scripts/test-hermes-assistant.py
 ./scripts/test-bluetooth-integration.sh
 python3 scripts/test-desktop-ui.py
+python3 scripts/test-capture.py
+python3 scripts/test-brightness-hold.py
+python3 scripts/test-keyboard-light.py
 python3 scripts/test-minimal-themes.py
 ./scripts/verify-snapshot.sh
 ```

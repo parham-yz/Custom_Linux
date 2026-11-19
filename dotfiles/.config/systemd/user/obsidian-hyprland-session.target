@@ -1,0 +1,5 @@
+[Unit]
+Description=Obsidian Hyprland graphical session
+BindsTo=graphical-session.target
+Wants=graphical-session-pre.target
+After=graphical-session-pre.target graphical-session.target

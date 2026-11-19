@@ -5,6 +5,7 @@ state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/obsidian-ember/auto-brightness"
 runtime_dir="${XDG_RUNTIME_DIR:-/tmp}/obsidian-ember-auto-brightness"
 disabled_file="$state_dir/disabled"
 pause_file="$runtime_dir/pause-until"
+hold_file="$runtime_dir/hold-until"
 iio_root="${OBSIDIAN_IIO_ROOT:-/sys/bus/iio/devices}"
 backlight_device="${OBSIDIAN_BACKLIGHT_DEVICE:-apple-panel-bl}"
 ac_online_path="${OBSIDIAN_AC_ONLINE_PATH:-/sys/class/power_supply/macsmc-ac/online}"
@@ -104,6 +105,9 @@ current_brightness() {
 set_brightness() {
   local percent="$1"
 
+  # A hold may have started while the sensor reading was in progress.
+  if [[ -f "$disabled_file" ]] || is_paused; then return 0; fi
+
   if [[ "${OBSIDIAN_AUTO_BRIGHTNESS_DRY_RUN:-0}" == 1 ]]; then
     printf 'Would set %s to %s%%\n' "$backlight_device" "$percent"
   else
@@ -111,16 +115,66 @@ set_brightness() {
   fi
 }
 
-is_paused() {
-  local now until
-  [[ -r "$pause_file" ]] || return 1
+deadline_active() {
+  local file="$1" now until
+  [[ -r "$file" ]] || return 1
   now="$(date +%s)"
-  until="$(<"$pause_file")"
+  until="$(<"$file")"
   [[ "$until" =~ ^[0-9]+$ && "$until" -gt "$now" ]]
+}
+
+is_paused() {
+  deadline_active "$hold_file" || deadline_active "$pause_file"
+}
+
+hold_remaining() {
+  local remaining
+  deadline_active "$hold_file" || return 1
+  remaining=$(( $(<"$hold_file") - $(date +%s) ))
+  printf '%s\n' "$(( (remaining + 59) / 60 ))"
+}
+
+hold_brightness() {
+  local temporary current
+  ensure_state_dirs
+  if [[ -f "$disabled_file" ]]; then
+    notify-send 'Automatic brightness is off' 'Enable it in Quick settings before using a timed hold.'
+    return
+  fi
+  temporary="$(mktemp "$runtime_dir/hold-until.XXXXXX")" || return 1
+  printf '%s\n' "$(( $(date +%s) + 3600 ))" > "$temporary"
+  mv -f "$temporary" "$hold_file"
+  current="$(current_brightness)"
+  notify-send 'Brightness held for one hour' "Current level: ${current}% · Click the brightness hold button to resume early." 2>/dev/null || true
+}
+
+resume_brightness() {
+  rm -f "$hold_file" "$pause_file"
+  notify-send 'Automatic brightness' 'One-hour hold ended' 2>/dev/null || true
+}
+
+bar_status() {
+  local minutes text class tooltip
+  if minutes="$(hold_remaining)"; then
+    text="󰌾 ${minutes}m"
+    class=held
+    tooltip="Brightness held · ${minutes} min remaining\nClick to resume automatic adjustment"
+  elif [[ -f "$disabled_file" ]]; then
+    text='󰛨'
+    class=disabled
+    tooltip='Automatic brightness is off\nEnable it in Quick settings to use a timed hold'
+  else
+    text='󰛨'
+    class=automatic
+    tooltip='Hold brightness for one hour\nClick to keep the current level · Automatic adjustment resumes afterward'
+  fi
+  jq -cn --arg text "$text" --arg class "$class" --arg tooltip "$tooltip" \
+    '{text:$text,class:$class,tooltip:($tooltip | split("\\n") | join("\n"))}'
 }
 
 adjust_once() {
   local directory lux target current difference next
+  if [[ -f "$disabled_file" ]] || is_paused; then return 0; fi
   directory="$(sensor_dir)" || return 3
   lux="$(read_lux "$directory")" || return 3
   target="$(target_for_lux "$lux")"
@@ -141,6 +195,13 @@ run_daemon() {
   local directory missing_reported=0 lux filtered target current difference next
 
   while true; do
+    # Keep manual/test overrides; halve sensor polling on battery.
+    if [[ -z "${OBSIDIAN_AUTO_BRIGHTNESS_POLL_SECONDS:-}" ]]; then
+      poll_seconds=2
+      if [[ -r "$ac_online_path" && "$(<"$ac_online_path")" == 0 ]]; then
+        poll_seconds=4
+      fi
+    fi
     if [[ -f "$disabled_file" ]] || is_paused; then
       sleep "$poll_seconds"
       continue
@@ -198,6 +259,10 @@ show_status() {
 
   printf 'Automatic brightness: %s\nService: %s\nPanel brightness: %s%%\n' \
     "$state" "${service:-unknown}" "$brightness"
+  if is_paused; then
+    printf 'Adjustment: paused\n'
+    deadline_active "$hold_file" && printf 'One-hour hold: %s min remaining\n' "$(hold_remaining)"
+  fi
 
   if directory="$(sensor_dir)"; then
     lux="$(read_lux "$directory")"
@@ -225,6 +290,12 @@ case "${1:-status}" in
     [[ "$seconds" =~ ^[0-9]+$ ]] || { printf 'Pause must be seconds.\n' >&2; exit 2; }
     printf '%s\n' "$(( $(date +%s) + seconds ))" > "$pause_file"
     ;;
+  hold) hold_brightness ;;
+  resume) resume_brightness ;;
+  hold-toggle)
+    if deadline_active "$hold_file"; then resume_brightness; else hold_brightness; fi
+    ;;
+  bar) bar_status ;;
   enable)
     ensure_state_dirs
     rm -f "$disabled_file"
@@ -245,11 +316,15 @@ case "${1:-status}" in
   status)
     show_status
     ;;
+  lux)
+    directory="$(sensor_dir)" || exit 3
+    read_lux "$directory"
+    ;;
   target)
     target_for_lux "${2:?lux value required}"
     ;;
   *)
-    printf 'Usage: obsidian-auto-brightness {status|enable|disable|toggle|pause [seconds]|once|daemon}\n' >&2
+    printf 'Usage: obsidian-auto-brightness {status|lux|enable|disable|toggle|pause [seconds]|hold|resume|hold-toggle|bar|once|daemon}\n' >&2
     exit 2
     ;;
 esac

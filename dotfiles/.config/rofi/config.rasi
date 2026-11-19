@@ -3,7 +3,7 @@ configuration {
   show-icons: true;
   icon-theme: "Papirus-Dark";
   drun-display-format: "{name}";
-  font: "JetBrainsMono Nerd Font 12";
+  font: "JetBrainsMono Nerd Font 10";
   matching: "fuzzy";
   sort: true;
 }
@@ -20,30 +20,30 @@ configuration {
 }
 
 window {
-  width: 620px;
+  width: 500px;
   location: center;
   anchor: center;
   background-color: @bg;
   border: 1px;
   border-color: @border;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
-mainbox { padding: 14px; spacing: 10px; }
+mainbox { padding: 10px; spacing: 8px; }
 inputbar {
   children: [prompt, entry];
-  background-color: @panel;
-  border-radius: 5px;
-  padding: 12px;
+  background-color: transparent;
+  border-radius: 0;
+  padding: 8px;
 }
 prompt { text-color: @accent; padding: 0 10px 0 2px; }
 entry { placeholder: "Search apps, commands, and windows…"; placeholder-color: @muted; }
 listview { lines: 11; columns: 1; fixed-height: false; spacing: 3px; scrollbar: true; }
-scrollbar { width: 3px; handle-width: 3px; handle-color: @muted; background-color: @panel; }
-element { padding: 10px 12px; border-radius: 4px; }
+scrollbar { width: 3px; handle-width: 3px; handle-color: @muted; background-color: transparent; }
+element { padding: 7px 8px; border-radius: 0; }
 element selected { background-color: @selected; text-color: @accent; }
 element alternate.normal { background-color: transparent; }
-element-icon { size: 24px; margin: 0 12px 0 0; text-color: inherit; }
+element-icon { size: 18px; margin: 0 12px 0 0; text-color: inherit; }
 element-text { vertical-align: 0.5; text-color: inherit; }
 message { padding: 0 4px; }
 textbox { text-color: @muted; }

@@ -29,6 +29,7 @@ root_menu() {
     '󱚣  Hermes assistant' \
     '󰄀  Capture' \
     '󰏘  Style' \
+    '󰍹  Displays' \
     '󰔡  Quick settings' \
     '󰖩  Connectivity' \
     '󰒓  System' \
@@ -42,6 +43,7 @@ root_menu() {
     *Hermes\ assistant) obsidian-hermes open ;;
     *Capture) exec "$0" capture ;;
     *Style) exec "$0" style ;;
+    *Displays) obsidian-display-settings ;;
     *Quick\ settings) exec "$0" toggle ;;
     *Connectivity) exec "$0" connectivity ;;
     *System) exec "$0" system ;;
@@ -92,12 +94,14 @@ capture_menu() {
     '󰖲  Active-window screenshot' \
     '󰑋  Screen recording' \
     '󰐲  Extract text (OCR)' \
-    '󰏘  Pick color')"
+    '󰏘  Pick color' \
+    '󰉋  Open screenshots folder')"
   case "$choice" in
     *Back) exec "$0" root ;;
     *Region*) obsidian-capture region ;;
     *Full-screen*) obsidian-capture screen ;;
     *Active-window*) obsidian-capture window ;;
+    *folder) obsidian-capture folder ;;
     *recording*) obsidian-record menu ;;
     *OCR*) obsidian-capture ocr ;;
     *color*) obsidian-capture color ;;
@@ -129,6 +133,7 @@ toggle_menu() {
   status="$(obsidian-status states)"
   choice="$(choose 'Quick settings' 'Select to toggle · current states shown on the right' \
     "󰃠  Automatic brightness    $(jq -r .brightness <<<"$status")" \
+    "󰌌  Keyboard lighting       $(jq -r .keyboard <<<"$status")" \
     "󰒲  Keep awake              $(jq -r .awake <<<"$status")" \
     "󰾅  Power saver             $(jq -r .power <<<"$status")" \
     "󰖔  Night light             $(jq -r .nightlight <<<"$status")" \
@@ -138,8 +143,9 @@ toggle_menu() {
   case "$choice" in
     *Back) exec "$0" root ;;
     *Automatic*) obsidian-toggle autobrightness ;;
+    *Keyboard\ lighting*) obsidian-keyboard-light toggle ;;
     *Keep\ awake*) obsidian-toggle idle ;;
-    *Power*) obsidian-power toggle ;;
+    *Power*) obsidian-power menu ;;
     *Night*) obsidian-toggle nightlight ;;
     *Do\ not\ disturb*) obsidian-toggle notifications ;;
     *Top\ bar) obsidian-toggle bar ;;
@@ -180,7 +186,7 @@ system_menu() {
       confirm 'Suspend' || return 0
       if command -v swaylock >/dev/null; then obsidian-lock; fi
       systemctl suspend ;;
-    *Log\ out) confirm 'Log out' || return 0; hyprctl dispatch exit ;;
+    *Log\ out) confirm 'Log out' || return 0; "$HOME/.local/bin/obsidian-hyprctl" dispatch exit ;;
     *Reboot) confirm 'Reboot' || return 0; systemctl reboot ;;
     *Power\ off) confirm 'Power off' || return 0; systemctl poweroff ;;
   esac
@@ -196,7 +202,7 @@ utilities_menu() {
     '󰔛  Show reminders' \
     '󰃭  Date and time notice' \
     '󰁹  Battery notice' \
-    '󰖐  Weather notice' \
+    '󰖐  Weather' \
     '󰓅  System activity' \
     '󰓃  Audio controls' \
     '󰖩  Wi-Fi controls' \

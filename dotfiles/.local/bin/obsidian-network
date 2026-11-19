@@ -201,8 +201,8 @@ for ssid in "${ssids_sorted[@]}"; do
   [[ "$ssid" == "$active_ssid" ]] && marker='✓' || marker=' '
   [[ "$ssid" == "$active_ssid" ]] && selected_index="${#labels[@]}"
   display_ssid="$ssid"
-  ((${#display_ssid} > 27)) && display_ssid="${display_ssid:0:26}…"
-  printf -v label '%s  %s  %-27s  %s  %3s%%' "$marker" "$bars" "$display_ssid" "$lock" "$signal"
+  ((${#display_ssid} > 24)) && display_ssid="${display_ssid:0:23}…"
+  printf -v label '%s  %s  %-24s %s' "$marker" "$bars" "$display_ssid" "$lock"
   labels+=("$label")
   ssids+=("$ssid")
   securities+=("$security")

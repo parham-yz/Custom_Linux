@@ -1,0 +1,17 @@
+[Unit]
+Description=Recover Broadcom BCM4387 Bluetooth across sleep
+Before=sleep.target
+After=bluetooth.service
+StopWhenUnneeded=yes
+ConditionPathExists=/sys/bus/pci/devices/0000:01:00.1
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/libexec/obsidian-bluetooth-sleep prepare
+ExecStop=/usr/local/libexec/obsidian-bluetooth-sleep restore
+TimeoutStartSec=60
+TimeoutStopSec=90
+
+[Install]
+WantedBy=sleep.target

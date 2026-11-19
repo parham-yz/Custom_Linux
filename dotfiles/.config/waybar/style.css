@@ -13,28 +13,30 @@ window#waybar { background: transparent; color: @text; }
 .modules-left, .modules-right {
   background: @bg;
   border: 1px solid @border;
-  border-radius: 6px;
+  border-radius: 0;
   padding: 0 4px;
 }
 #custom-launcher, #workspaces, #window, #custom-weather, #clock,
-#custom-updates, #custom-hermes, #custom-agents, #custom-status, #custom-activity,
-#pulseaudio, #bluetooth, #network, #backlight, #battery, #tray {
+#custom-updates, #custom-hermes, #custom-agents, #custom-status, #custom-activity, #custom-capture,
+#pulseaudio, #bluetooth, #network, #backlight, #custom-brightness-hold, #battery, #tray {
   padding: 0 8px;
   margin: 2px 0;
-  border-radius: 4px;
+  border-radius: 0;
   background: transparent;
   color: @text;
 }
 #custom-launcher { color: @accent; font-weight: 700; padding: 0 11px; }
 #custom-launcher:hover, #custom-weather:hover, #custom-updates:hover,
-#custom-hermes:hover, #custom-agents:hover, #custom-status:hover, #custom-activity:hover,
+#custom-hermes:hover, #custom-agents:hover, #custom-status:hover, #custom-activity:hover, #custom-capture:hover,
 #clock:hover, #pulseaudio:hover, #bluetooth:hover, #network:hover,
-#backlight:hover, #battery:hover { background: @hover; }
+#backlight:hover, #custom-brightness-hold:hover, #battery:hover { background: @hover; }
+#custom-brightness-hold { color: @muted; padding: 0 6px; }
+#custom-brightness-hold.held { color: @accent; background: @hover; }
 #workspaces { padding: 0 2px; }
 #workspaces button {
   color: @muted;
   background: transparent;
-  border-radius: 4px;
+  border-radius: 0;
   padding: 0 6px;
   margin: 0 1px;
   box-shadow: none;
@@ -46,7 +48,7 @@ window#waybar { background: transparent; color: @text; }
 #workspaces button:hover { color: @text; background: @hover; }
 #window, #custom-weather, #custom-activity, #custom-agents { color: @muted; }
 window#waybar.empty #window, #window.empty,
-#custom-updates.current, #custom-weather.empty, #custom-agents.empty,
+#custom-updates.current, #custom-agents.empty,
 #custom-status.empty { min-width: 0; padding: 0; margin: 0; background: transparent; }
 #custom-notch { min-width: 176px; background: transparent; }
 #clock { font-weight: 600; }
@@ -61,7 +63,7 @@ window#waybar.empty #window, #window.empty,
 #battery.charging, #battery.plugged { color: @accent; }
 #battery.warning:not(.charging) { color: @accent2; }
 #battery.critical:not(.charging) { color: @danger; font-weight: 700; }
- tooltip { background: @panel; color: @text; border: 1px solid @border; border-radius: 6px; }
+ tooltip { background: @panel; color: @text; border: 1px solid @border; border-radius: 0; }
  tooltip label { padding: 8px; }
 
 #custom-hermes { color: @accent; }

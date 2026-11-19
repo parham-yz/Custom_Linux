@@ -113,7 +113,9 @@ def main():
                             assert layers(),f'{name}: clicking inside dismissed the panel'
                             sp.run(['wtype',query],check=True);time.sleep(.15)
                             if action=='keyboard':key('Return')
-                            else:click(width-300,174)
+                            # The compact panel's first filtered row is higher;
+                            # retain the old coordinate for historical themes.
+                            else:click(width-300,174 if args.theme else 146)
                         else:
                             sp.run([str(ROOT/'dotfiles/.local/bin'/name)],env=env,check=True,timeout=3)
                         try:p.wait(timeout=2)

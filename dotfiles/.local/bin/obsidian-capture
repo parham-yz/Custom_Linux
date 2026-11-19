@@ -7,13 +7,14 @@ mkdir -p "$output_dir"
 timestamp="$(date +%Y-%m-%d_%H-%M-%S-%N)"
 
 capture_file() {
-  local kind="$1" geometry="${2:-}" path="$output_dir/$timestamp-$kind.png"
+  local kind="$1" geometry="${2:-}" path
+  path="$output_dir/$timestamp-$kind.png"
   if [[ -n "$geometry" ]]; then
     grim -g "$geometry" "$path"
   else
     grim "$path"
   fi
-  wl-copy < "$path"
+  wl-copy --type image/png < "$path"
   notify-send 'Screenshot captured' "$path"
 }
 
@@ -26,6 +27,7 @@ window_geometry() {
 }
 
 case "${1:-region}" in
+  folder) exec xdg-open "$output_dir" ;;
   region)
     geometry="$(region_geometry)" || exit 0
     capture_file region "$geometry"
@@ -56,5 +58,5 @@ case "${1:-region}" in
     printf '#%s' "$hex" | wl-copy
     notify-send 'Color copied' "#$hex"
     ;;
-  *) printf 'Usage: obsidian-capture {region|screen|window|ocr|color}\n' >&2; exit 2 ;;
+  *) printf 'Usage: obsidian-capture {region|screen|window|ocr|color|folder}\n' >&2; exit 2 ;;
 esac

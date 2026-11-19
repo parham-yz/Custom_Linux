@@ -2,6 +2,7 @@
 @import "../obsidian-ember/current/rofi.rasi"
 
 * {
+  font: "JetBrainsMono Nerd Font 10";
   background-color: transparent;
   text-color: @fg;
   margin: 0;
@@ -43,21 +44,21 @@ button-dismiss-top { expand: false; font: "monospace 1"; padding: 20px 0 21px; }
 button-dismiss-right { expand: false; width: 10px; }
 mainbox {
   expand: false;
-  width: 560px;
+  width: 380px;
   background-color: @bg;
   border: 1px;
   border-color: @border;
-  border-radius: 8px;
-  padding: 14px;
-  spacing: 10px;
+  border-radius: 0;
+  padding: 10px;
+  spacing: 8px;
   children: [inputbar, message, listview];
 }
 
 inputbar {
   children: [prompt, entry];
-  background-color: @panel;
-  border-radius: 5px;
-  padding: 12px 13px;
+  background-color: transparent;
+  border-radius: 0;
+  padding: 7px 6px;
 }
 
 prompt {
@@ -86,12 +87,12 @@ listview {
   // The menu wrappers set the row count before this fullscreen layout opens.
   fixed-height: true;
   scrollbar: true;
-  spacing: 3px;
+  spacing: 0px;
 }
 
 element {
-  padding: 11px 12px;
-  border-radius: 4px;
+  padding: 7px 6px;
+  border-radius: 0;
 }
 
 element selected {
@@ -104,4 +105,4 @@ element-text {
   text-color: inherit;
 }
 
-scrollbar { width: 3px; handle-width: 3px; handle-color: @muted; background-color: @panel; }
+scrollbar { width: 3px; handle-width: 3px; handle-color: @muted; background-color: transparent; }

@@ -46,3 +46,14 @@ default-timeout=1200
 ignore-timeout=1
 invisible=0
 border-color=#5a4632
+
+# Connection feedback must not cover the top-right connectivity controls.
+[app-name="Network"]
+anchor=bottom-left
+output=eDP-1
+outer-margin=12
+
+[app-name="Bluetooth"]
+anchor=bottom-left
+output=eDP-1
+outer-margin=12

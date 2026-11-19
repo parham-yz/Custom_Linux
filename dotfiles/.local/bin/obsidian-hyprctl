@@ -1,0 +1,87 @@
+#!/usr/bin/python3
+"""Translate the small legacy IPC subset used by Obsidian's desktop helpers.
+
+This is deliberately scoped to Obsidian; the system hyprctl is unchanged.
+"""
+import json
+import re
+import subprocess
+import sys
+
+
+def lua(value):
+    if isinstance(value, bool):
+        return 'true' if value else 'false'
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, dict):
+        return '{' + ','.join('[' + lua(k) + ']=' + lua(v) for k, v in value.items()) + '}'
+    return json.dumps(value, ensure_ascii=False)
+
+
+def monitor_rule(text):
+    p = [s.strip() for s in text.split(',')]
+    if len(p) == 2 and p[1] in ('disable', 'disabled'):
+        return {'output': p[0], 'disabled': True}
+    if len(p) < 4 or (len(p) - 4) % 2:
+        raise ValueError('Malformed monitor rule')
+    m = dict(output=p[0], mode=p[1], position=p[2], scale=p[3])
+    for i in range(4, len(p), 2):
+        if p[i] not in ('transform', 'mirror'):
+            raise ValueError('Unsupported monitor option: ' + p[i])
+        m[p[i]] = int(p[i+1]) if p[i] == 'transform' else p[i+1]
+    return m
+
+
+def translate(args):
+    if args[0] == 'keyword' and len(args) == 3:
+        key, value = args[1:]
+        if key == 'monitor':
+            return 'hl.monitor(' + lua(monitor_rule(value)) + ')'
+        supported = {'general:gaps_in', 'general:gaps_out', 'decoration:rounding',
+                     'decoration:blur:enabled', 'animations:enabled'}
+        if key not in supported:
+            raise ValueError('Unsupported Obsidian setting: ' + key)
+        if value in ('true', 'false'):
+            value = value == 'true'
+        elif re.fullmatch(r'-?\d+(?:\.\d+)?', value):
+            value = float(value) if '.' in value else int(value)
+        elif key in ('general:gaps_in', 'general:gaps_out'):
+            parts = value.split()
+            if len(parts) != 4 or not all(re.fullmatch(r'-?\d+', p) for p in parts):
+                raise ValueError('Expected four integer gap values')
+            value = dict(zip(('top', 'right', 'bottom', 'left'), map(int, parts)))
+        return 'hl.config(' + lua({key.replace(':', '.'): value}) + ')'
+    if args[0] == 'dispatch':
+        name = args[1]
+        arg = ' '.join(args[2:])
+        if name == 'exec':
+            return 'hl.exec_cmd(' + lua(arg) + ')'
+        if name == 'dpms' and arg in ('on', 'off'):
+            return 'hl.dispatch(hl.dsp.dpms(' + lua({'action': arg}) + '))'
+        if name == 'closewindow' and re.fullmatch(r'address:0x[0-9a-fA-F]+', arg):
+            return 'hl.dispatch(hl.dsp.window.close(' + lua({'window': arg}) + '))'
+        if name == 'exit' and not arg:
+            return 'hl.dispatch(hl.dsp.exit())'
+        raise ValueError('Unsupported Obsidian dispatcher: ' + name)
+    return None
+
+
+def main():
+    args = sys.argv[1:]
+    if not args:
+        raise ValueError('Missing command')
+    code = translate(args)
+    result = subprocess.run(['/usr/bin/hyprctl', *(['eval', code] if code else args)],
+                            capture_output=True, text=True)
+    sys.stdout.write(result.stdout)
+    sys.stderr.write(result.stderr)
+    return result.returncode or (1 if code and result.stdout.strip() != 'ok' else 0)
+
+
+if __name__ == '__main__':
+    try:
+        sys.exit(main())
+    except (ValueError, IndexError) as error:
+        print(error, file=sys.stderr)
+        sys.exit(2)

@@ -1,0 +1,5 @@
+#weather-backdrop { background: transparent; }
+#weather-panel .city { font-size: 13px; padding: 2px 0; }
+#weather-panel .temperature { font-size: 32px; font-weight: 500; }
+#weather-panel .weather-icon { color: {{accent}}; padding: 6px 0; }
+#weather-panel .forecast-row { padding: 7px 0; }

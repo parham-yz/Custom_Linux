@@ -4,12 +4,12 @@ outer-margin=43,10,10
 margin=0,0,8
 width=360
 height=180
-padding=14
+padding=10
 border-size=1
-border-radius=8
+border-radius=0
 icons=1
 max-icon-size=32
-font=JetBrainsMono Nerd Font 11
+font=JetBrainsMono Nerd Font 10
 background-color=#{{BG}}
 text-color=#{{TEXT}}
 border-color=#{{BORDER}}cc
@@ -46,3 +46,14 @@ default-timeout=1200
 ignore-timeout=1
 invisible=0
 border-color=#{{BORDER}}
+
+# Connection feedback must not cover the top-right connectivity controls.
+[app-name="Network"]
+anchor=bottom-left
+output=eDP-1
+outer-margin=12
+
+[app-name="Bluetooth"]
+anchor=bottom-left
+output=eDP-1
+outer-margin=12

@@ -12,23 +12,23 @@ case "${1:-}" in
     if [[ -f "$state_dir/no-gaps" ]]; then
       rm -f "$state_dir/no-gaps"
       if [[ -r "$state_dir/gaps-before.json" ]]; then
-        hyprctl keyword general:gaps_in "$(jq -r .inner "$state_dir/gaps-before.json")" >/dev/null
-        hyprctl keyword general:gaps_out "$(jq -r .outer "$state_dir/gaps-before.json")" >/dev/null
-        hyprctl keyword decoration:rounding "$(jq -r .rounding "$state_dir/gaps-before.json")" >/dev/null
+        "$HOME/.local/bin/obsidian-hyprctl" keyword general:gaps_in "$(jq -r .inner "$state_dir/gaps-before.json")" >/dev/null
+        "$HOME/.local/bin/obsidian-hyprctl" keyword general:gaps_out "$(jq -r .outer "$state_dir/gaps-before.json")" >/dev/null
+        "$HOME/.local/bin/obsidian-hyprctl" keyword decoration:rounding "$(jq -r .rounding "$state_dir/gaps-before.json")" >/dev/null
       else
         hyprctl reload >/dev/null
       fi
       notify-send 'Window gaps' 'Enabled'
     else
-      inner="$(hyprctl getoption general:gaps_in -j | jq -r '.custom // .int')"
-      outer="$(hyprctl getoption general:gaps_out -j | jq -r '.custom // .int')"
+      inner="$(hyprctl getoption general:gaps_in -j | jq -r '.css // .custom // .int')"
+      outer="$(hyprctl getoption general:gaps_out -j | jq -r '.css // .custom // .int')"
       rounding="$(hyprctl getoption decoration:rounding -j | jq -r .int)"
       jq -n --arg inner "$inner" --arg outer "$outer" --arg rounding "$rounding" \
         '{inner:$inner,outer:$outer,rounding:$rounding}' > "$state_dir/gaps-before.json"
       : > "$state_dir/no-gaps"
-      hyprctl keyword general:gaps_in 0
-      hyprctl keyword general:gaps_out 0
-      hyprctl keyword decoration:rounding 0
+      "$HOME/.local/bin/obsidian-hyprctl" keyword general:gaps_in 0
+      "$HOME/.local/bin/obsidian-hyprctl" keyword general:gaps_out 0
+      "$HOME/.local/bin/obsidian-hyprctl" keyword decoration:rounding 0
       notify-send 'Window gaps' 'Disabled'
     fi
     ;;
@@ -82,9 +82,9 @@ case "${1:-}" in
     ;;
   reapply)
     if [[ -f "$state_dir/no-gaps" ]]; then
-      hyprctl keyword general:gaps_in 0 >/dev/null
-      hyprctl keyword general:gaps_out 0 >/dev/null
-      hyprctl keyword decoration:rounding 0 >/dev/null
+      "$HOME/.local/bin/obsidian-hyprctl" keyword general:gaps_in 0 >/dev/null
+      "$HOME/.local/bin/obsidian-hyprctl" keyword general:gaps_out 0 >/dev/null
+      "$HOME/.local/bin/obsidian-hyprctl" keyword decoration:rounding 0 >/dev/null
     fi
     ;;
   *) printf 'Usage: obsidian-toggle {autobrightness|bar|gaps|idle|nightlight|notifications|reload}\n' >&2; exit 2 ;;

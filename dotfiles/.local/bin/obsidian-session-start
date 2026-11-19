@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Restore the themed session once; safe to invoke after a config migration.
+set -euo pipefail
+export PATH="$HOME/.local/bin:$PATH"
+exec 9>"${XDG_RUNTIME_DIR:?}/obsidian-session-start.lock"
+flock -n 9 || exit 0
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/obsidian-ember"
+mkdir -p "$state_dir"
+exec >>"$state_dir/session-start.log" 2>&1
+printf '\nSession setup: %s\n' "$(date --iso-8601=seconds)"
+dbus-update-activation-environment --systemd WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE DISPLAY PATH
+systemctl --user start obsidian-hyprland-session.target
+systemctl --user start --no-block xdg-desktop-portal-hyprland.service xdg-desktop-portal.service
+if ! pgrep -u "$UID" -x mako >/dev/null; then
+  obsidian-hyprctl dispatch exec mako
+fi
+if ! pgrep -u "$UID" -f '^/usr/libexec/kf6/polkit-kde-authentication-agent-1' >/dev/null; then
+  obsidian-hyprctl dispatch exec /usr/libexec/kf6/polkit-kde-authentication-agent-1
+fi
+obsidian-theme restore
+if ! obsidian-clipboard status; then
+  obsidian-hyprctl dispatch exec "$HOME/.local/bin/obsidian-clipboard watch"
+fi
+systemctl --user start --no-block obsidian-power.service obsidian-idle.service hyprwhspr.service obsidian-agent-usage.timer obsidian-agent-crash-watch.service

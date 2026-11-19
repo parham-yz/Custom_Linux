@@ -17,8 +17,7 @@ case "${1:-time}" in
     fi
     ;;
   weather)
-    weather="$(curl -fsS --max-time 8 'https://wttr.in/?format=%l:+%c+%t,+feels+%f,+%w' || true)"
-    notify-send 'Weather' "${weather:-Weather service unavailable}"
+    exec obsidian-weather menu
     ;;
   *) printf 'Usage: obsidian-notice {time|battery|weather}\n' >&2; exit 2 ;;
 esac

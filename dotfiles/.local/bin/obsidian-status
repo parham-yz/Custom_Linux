@@ -33,12 +33,14 @@ def states():
     profile = command('busctl', '--system', 'get-property', 'net.hadess.PowerProfiles',
                       '/net/hadess/PowerProfiles', 'net.hadess.PowerProfiles', 'ActiveProfile')
     brightness = command('systemctl', '--user', 'is-active', 'obsidian-auto-brightness.service')
+    keyboard = command('systemctl', '--user', 'is-active', 'obsidian-keyboard-light.service')
     return {
         'dnd': 'on' if 'do-not-disturb' in modes else 'off' if modes else 'unavailable',
         'awake': 'on' if running(STATE / 'toggles/inhibit.pid', 'systemd-inhibit') else 'off',
         'nightlight': 'on' if running(STATE / 'toggles/nightlight.pid', 'wlsunset') else 'off',
         'power': 'on' if 'power-saver' in profile else 'off' if profile else 'unavailable',
         'brightness': 'off' if (STATE / 'auto-brightness/disabled').exists() else 'on' if brightness == 'active' else 'unavailable',
+        'keyboard': 'off' if (STATE / 'keyboard-light/disabled').exists() else 'on' if keyboard == 'active' else 'unavailable',
     }
 
 

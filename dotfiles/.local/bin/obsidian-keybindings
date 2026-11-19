@@ -40,6 +40,8 @@ SUPER + X                        Universal cut
 SUPER + CTRL + V                 Clipboard history
 SUPER + CTRL + E                 Emoji picker
 PRINT                            Region screenshot
+SUPER + SHIFT + S                Region screenshot (MacBook keyboard)
+SUPER + CTRL + SHIFT + S         Full-screen screenshot (MacBook keyboard)
 SHIFT + PRINT                    Full-screen screenshot
 ALT + PRINT                      Start / stop screen recording
 SUPER + PRINT                    Color picker
@@ -53,7 +55,7 @@ SUPER + CTRL + ALT + R           Show reminders
 SUPER + CTRL + SHIFT + R         Clear reminders
 SUPER + CTRL + ALT + T           Date / time notice
 SUPER + CTRL + ALT + B           Battery notice
-SUPER + CTRL + ALT + W           Weather notice
+SUPER + CTRL + ALT + W           Weather panel
 SUPER + CTRL + SPACE             Wallpaper picker
 SUPER + CTRL + SHIFT + SPACE     Theme picker
 SUPER + SHIFT + SPACE            Toggle top bar

@@ -10,7 +10,8 @@
     "path": ".config/obsidian-ember/theme-templates/mako.conf.tpl",
     "before": "7082947dc8568a71dc7066a6867ac49f54f39cd7c3ecf428dded9855d8b9a9de",
     "previous": [
-      "509a782c4f4a9a9c242e96054e65168103cfc3ba565b2915377bcea491ecdf29"
+      "509a782c4f4a9a9c242e96054e65168103cfc3ba565b2915377bcea491ecdf29",
+      "014c09e5488433eb4c779e1c4e2d0ac46928ee0342e7b17e62e2c79bd3ac1018"
     ]
   },
   {
@@ -52,7 +53,8 @@
     "path": ".config/rofi/config.rasi",
     "before": "d2828b256da1dda70dec2e1d24cc871b2b5de25ff652c20119628e5e5156e517",
     "previous": [
-      "6bb32ccddc08494ee6650010c342654a5f72fac956808691212d5c01ce319926"
+      "6bb32ccddc08494ee6650010c342654a5f72fac956808691212d5c01ce319926",
+      "95caf27f6cb360d6999dcba6183d01c2cb56109b2420c7a22e38901e38d64b28"
     ]
   },
   {
@@ -60,21 +62,25 @@
     "before": "166d9c3a4d76c9c9f184aa99ef2b7d5a741c4fff084868aff64736af2f35814e",
     "previous": [
       "4ef5a736f0e50132109237994d017a523a3b65ee42381d86a8e309075a6ad3e8",
-      "8fc28fa64fdfc36769a2b6f7a7d6396fecabdd628484fe297bb381953bdd11d2"
+      "8fc28fa64fdfc36769a2b6f7a7d6396fecabdd628484fe297bb381953bdd11d2",
+      "b104fb1c497d22fccbb89b0fae1c15799ac7cbb453cd147dc25dcbbfef6e6261"
     ]
   },
   {
     "path": ".config/waybar/config",
     "before": "21ad22f82709c9979bd14dc9f9cbf4b9f72abae8ce30bbe701178a581edd7566",
     "previous": [
-      "6bd1e7b9b781bbf02425540215ce5f63a20e67ac8ade7e2f8b4f956aeaeb3786"
+      "6bd1e7b9b781bbf02425540215ce5f63a20e67ac8ade7e2f8b4f956aeaeb3786",
+      "ad27a7f93ccf58f1aa6a25d19095a7c9e4fe2570af01ebb4a1ce21b51f2a5514"
     ]
   },
   {
     "path": ".config/waybar/style.css",
     "before": "f71ed00444305b27d2de25aa9fba2e5f11e0e514f6d70c7173f16863b8d37b8e",
     "previous": [
-      "3430560443ee4fd512757fbe4633f10c45ea8f86b420f5b51e2327be811680eb"
+      "3430560443ee4fd512757fbe4633f10c45ea8f86b420f5b51e2327be811680eb",
+      "120fd4f0a37fd6f385287d7134c32dd4154aae5418dc60a6ce96d86b23af34e1",
+      "df4b5800f8038c634ecdc12f97fb4194f4126305dd6ad7c1de2410365029f31a"
     ]
   },
   {
@@ -123,14 +129,16 @@
     "path": ".local/bin/obsidian-keybindings",
     "before": "172c496d7169293bc7ae5afa42b8a154e4e9ee456adff0f90996dea6e9e2434c",
     "previous": [
-      "8a8760fee9bf99744fee5154e038dff8d4dd5c52c234364d6b84da5e19028677"
+      "8a8760fee9bf99744fee5154e038dff8d4dd5c52c234364d6b84da5e19028677",
+      "1fbd961f34d349d85678c8dcd78d2e087abba4e86f144c063b99947c76a5e499"
     ]
   },
   {
     "path": ".local/bin/obsidian-menu",
     "before": "b99e595816b9cec9ee49a43798dfeb65b60dcdfdcb3a77ec4888356001b5f659",
     "previous": [
-      "670b9b70a414c1d6bd503b6e89f5401fcd5376f9af981dc866126538f30c9793"
+      "670b9b70a414c1d6bd503b6e89f5401fcd5376f9af981dc866126538f30c9793",
+      "f5d93c22216c4a30bebe2057cb3d0617b6f8f3e396d8edc4dd71e38295e321a4"
     ]
   },
   {
@@ -201,7 +209,8 @@
     "path": ".local/bin/obsidian-network",
     "before": "3acd02847327fa4a62e1014df08ece466649a99fde2a3cf25320ff5d4d8e1bcd",
     "previous": [
-      "ea98b5913af31c626377edbac4a7650e43f1cc23727e36cff428f6ce79f71b0f"
+      "ea98b5913af31c626377edbac4a7650e43f1cc23727e36cff428f6ce79f71b0f",
+      "d866cd3628ae91c44d32cc0a601e35117f45b355b5e1083c20c054d183e727da"
     ]
   },
   {
@@ -210,5 +219,47 @@
     "previous": [
       "bb6d18104646e16dda7be401d72df60f03d08be3812e924944c81cbfe0cbf257"
     ]
+  },
+  {
+    "path": ".local/share/obsidian-bluetooth/panel.py",
+    "before": null,
+    "previous": [
+      "5d6c181470066453fb04c0d10ad37ce5b21a2f191109a24862fc3df8124b4a09"
+    ]
+  },
+  {
+    "path": ".local/share/obsidian-bluetooth/panel.css",
+    "before": null,
+    "previous": [
+      "48277086e9ae0c8d3409c25d930431c6070017bcd0f81137df9d31216255f6d8"
+    ]
+  },
+  {
+    "path": ".local/share/obsidian-power/panel.py",
+    "before": "3ca75264f4ee4fa8853dcf7b2ac2bb9dbb682520e6d0b07b4ad76dce053ae0de"
+  },
+  {
+    "path": ".local/share/obsidian-power/panel.css",
+    "before": "a4eb42133617ce6fe289a9b5f51d20021ec62e0e5405430b3b249841fc15475f"
+  },
+  {
+    "path": ".config/obsidian-ember/panel.css",
+    "before": null
+  },
+  {
+    "path": ".local/bin/obsidian-notice",
+    "before": "f7782c083cac389828f4404f5f7adfaa6696ac5db1ae1b79b31458df993f12e0"
+  },
+  {
+    "path": ".local/share/obsidian-weather/weather.py",
+    "before": null
+  },
+  {
+    "path": ".local/share/obsidian-weather/panel.py",
+    "before": null
+  },
+  {
+    "path": ".local/share/obsidian-weather/panel.css",
+    "before": null
   }
 ]
